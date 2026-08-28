@@ -48,6 +48,8 @@ export class UniswapV3Adapter implements SwapProtocol {
   }
 
   async getQuote(params: QuoteParams): Promise<Quote> {
+    const slippageBps = params.slippageBps ?? 50;
+    if (!Number.isInteger(slippageBps) || slippageBps < 0 || slippageBps > 10000) throw new Error('Invalid slippage');
     const client = await getHealthyClient();
     const tokenInAddress = this.resolveAddress(params.tokenIn);
     const tokenOutAddress = this.resolveAddress(params.tokenOut);
@@ -73,8 +75,6 @@ export class UniswapV3Adapter implements SwapProtocol {
 
     const expectedOutput = fromBaseUnits(amountOut, decimalsOut);
     // Calculate minimum output with slippage (default 0.5%)
-    const slippageBps = params.slippageBps ?? 50;
-    if (!Number.isInteger(slippageBps) || slippageBps < 0 || slippageBps > 10000) throw new Error('Invalid slippage');
     const minOut = amountOut * BigInt(10000 - slippageBps) / 10000n;
     const minimumOutput = fromBaseUnits(minOut, decimalsOut);
 
