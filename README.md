@@ -9,6 +9,7 @@
 IntentFi translates natural-language financial intents into validated, policy-checked, simulated on-chain transactions.
 
 Core flow:
+
 ```
 User Input (NL or Form)
   -> Parse Intent
@@ -101,11 +102,11 @@ npm test
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_RPC_PRIMARY` | No | Primary Sepolia RPC (default: public) |
-| `VITE_RPC_FALLBACK` | No | Fallback RPC (default: publicnode) |
-| `VITE_WALLETCONNECT_PROJECT_ID` | No | WalletConnect v2 project ID |
+| Variable                        | Required | Description                           |
+| ------------------------------- | -------- | ------------------------------------- |
+| `VITE_RPC_PRIMARY`              | No       | Primary Sepolia RPC (default: public) |
+| `VITE_RPC_FALLBACK`             | No       | Fallback RPC (default: publicnode)    |
+| `VITE_WALLETCONNECT_PROJECT_ID` | No       | WalletConnect v2 project ID           |
 
 ## Testing
 
@@ -118,6 +119,7 @@ npm test
 ```
 
 Test coverage:
+
 - Intent validation (6 tests)
 - Fallback regex parser (6 tests)
 - Policy engine core (7 tests)
@@ -126,10 +128,10 @@ Test coverage:
 
 ## Supported Tokens (Sepolia)
 
-| Token | Address |
-|-------|--------|
-| USDC | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
-| WETH | `0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14` |
+| Token | Address                                      |
+| ----- | -------------------------------------------- |
+| USDC  | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
+| WETH  | `0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14` |
 
 ## Demo Scenario
 
@@ -143,6 +145,7 @@ Test coverage:
 6. View on Etherscan
 
 The app also persists a small, wallet-scoped transaction history and local safety policy. History is capped at 10 entries and no private key or seed phrase is stored.
+The connected wallet header shows live ETH, USDC, and WETH balances from the configured RPC.
 
 ## Security Model
 

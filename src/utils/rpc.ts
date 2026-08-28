@@ -1,4 +1,4 @@
-import { createPublicClient, http, PublicClient } from 'viem';
+import { createPublicClient, fallback as fallbackTransport, http, PublicClient } from 'viem';
 import { sepolia } from 'viem/chains';
 import { CHAIN_CONFIG } from '../config';
 
@@ -6,6 +6,16 @@ let activeClient: PublicClient | null = null;
 let usingFallback = false;
 let lastHealthCheck = 0;
 const HEALTH_CHECK_INTERVAL = 60000; // Re-check every 60s
+
+function createResilientClient(): PublicClient {
+  return createPublicClient({
+    chain: sepolia,
+    transport: fallbackTransport([
+      http(CHAIN_CONFIG.rpcPrimary, { timeout: 10_000 }),
+      http(CHAIN_CONFIG.rpcFallback, { timeout: 10_000 }),
+    ]),
+  });
+}
 
 export type RpcStatus = {
   connected: boolean;
@@ -37,10 +47,10 @@ export async function getHealthyClient(): Promise<PublicClient> {
 
   try {
     await primary.getBlockNumber();
-    activeClient = primary;
+    activeClient = createResilientClient();
     usingFallback = false;
     lastHealthCheck = now;
-    return primary;
+    return activeClient;
   } catch {
     console.warn('[RPC] Primary unavailable, trying fallback...');
   }

@@ -52,6 +52,13 @@ body {
   gap: 1rem;
 }
 
+.wallet-balances {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
 .balance {
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -412,6 +419,7 @@ body {
   .input-row button { width: 100%; }
   .execution-buttons { flex-direction: column; }
   .wallet-area { width: 100%; justify-content: space-between; }
+  .wallet-balances { justify-content: flex-start; }
 }
 
 /* Mode Toggle */

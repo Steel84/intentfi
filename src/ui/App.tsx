@@ -13,7 +13,7 @@ import { PolicySettings } from './PolicySettings';
 import { FlowProgress } from './FlowProgress';
 import { AgentStatus } from './AgentStatus';
 import { useSwapFlow } from './useSwapFlow';
-import { CHAIN_CONFIG } from '../config';
+import { CHAIN_CONFIG, TOKENS } from '../config';
 
 export type AppState =
   | 'idle'
@@ -31,7 +31,15 @@ export type AppState =
 
 export default function App() {
   const { address, isConnected } = useAccount();
-  const { data: balance } = useBalance({ address });
+  const { data: nativeBalance } = useBalance({ address });
+  const { data: usdcBalance } = useBalance({
+    address,
+    token: TOKENS.USDC.address as `0x${string}`,
+  });
+  const { data: wethBalance } = useBalance({
+    address,
+    token: TOKENS.WETH.address as `0x${string}`,
+  });
   const flow = useSwapFlow();
   const [inputError, setInputError] = useState<string | null>(null);
 
@@ -41,10 +49,20 @@ export default function App() {
         <h1 className="logo">IntentFi</h1>
         <div className="wallet-area">
           <ConnectKitButton />
-          {isConnected && balance && (
-            <span className="balance">
-              {parseFloat(balance.formatted).toFixed(4)} {balance.symbol}
-            </span>
+          {isConnected && (
+            <div className="wallet-balances" aria-label="Wallet balances">
+              {nativeBalance && (
+                <span className="balance">
+                  {parseFloat(nativeBalance.formatted).toFixed(4)} {nativeBalance.symbol}
+                </span>
+              )}
+              {usdcBalance && (
+                <span className="balance">{parseFloat(usdcBalance.formatted).toFixed(2)} USDC</span>
+              )}
+              {wethBalance && (
+                <span className="balance">{parseFloat(wethBalance.formatted).toFixed(6)} WETH</span>
+              )}
+            </div>
           )}
         </div>
       </header>
