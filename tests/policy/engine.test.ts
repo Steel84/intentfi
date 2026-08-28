@@ -51,6 +51,13 @@ describe('Policy Engine', () => {
     expect(result.checks.find((c) => c.name === 'Slippage Within Limit')?.passed).toBe(false);
   });
 
+  it('should REJECT high slippage independently of simulation state', () => {
+    const intent = { ...baseIntent, maxSlippageBps: 100 };
+    const result = evaluatePolicy(intent, baseQuote, baseSimulation, policy);
+    expect(result.status).toBe('REJECT');
+    expect(result.checks.find((c) => c.name === 'Slippage Within Limit')?.passed).toBe(false);
+  });
+
   it('should REJECT disallowed token', () => {
     const intent = { ...baseIntent, tokenIn: 'SHIB' };
     const result = evaluatePolicy(intent, baseQuote, baseSimulation, policy);

@@ -11,6 +11,7 @@ export const CHAIN_CONFIG = {
 } as const;
 
 // Uniswap V3 Sepolia deployments (verified)
+// SwapRouter02 is used with deadline-protected multicall; the legacy V1 router is not deployed on Sepolia.
 // https://docs.uniswap.org/contracts/v3/reference/deployments/sepolia-deployments
 export const UNISWAP_V3_ADDRESSES = {
   swapRouter: '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E',

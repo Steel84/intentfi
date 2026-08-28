@@ -12,6 +12,7 @@ import { toBaseUnits, fromBaseUnits, getTokenDecimals } from '../utils/tokens';
 import { encodeFunctionData, parseAbi } from 'viem';
 
 // Uniswap V3 Sepolia deployments
+// The deployed SwapRouter02 uses a 7-field exactInputSingle tuple.
 // https://docs.uniswap.org/contracts/v3/reference/deployments/sepolia-deployments
 const UNISWAP_SEPOLIA = {
   swapRouter: '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E' as `0x${string}`,
@@ -27,7 +28,11 @@ const QUOTER_ABI = parseAbi([
 ]);
 
 const SWAP_ROUTER_ABI = parseAbi([
-  'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)',
+  'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)',
+]);
+
+const MULTICALL_ABI = parseAbi([
+  'function multicall(uint256 deadline, bytes[] data) external payable returns (bytes[] results)',
 ]);
 
 const FACTORY_ABI = parseAbi([
@@ -140,7 +145,9 @@ export class UniswapV3Adapter implements SwapProtocol {
     const decimalsOut = getTokenDecimals(params.tokenOut);
     const minAmountOutWei = toBaseUnits(params.minAmountOut, decimalsOut);
 
-    const data = encodeFunctionData({
+    // Sepolia's deployed address is SwapRouter02. Its swap tuple has no deadline,
+    // so wrap the exact-input call in deadline-protected multicall(uint256,bytes[]).
+    const swapData = encodeFunctionData({
       abi: SWAP_ROUTER_ABI,
       functionName: 'exactInputSingle',
       args: [
@@ -149,12 +156,16 @@ export class UniswapV3Adapter implements SwapProtocol {
           tokenOut: tokenOutAddress,
           fee: FEE_TIER,
           recipient: params.recipient as `0x${string}`,
-          deadline: BigInt(params.deadline),
           amountIn: amountInWei,
           amountOutMinimum: minAmountOutWei,
           sqrtPriceLimitX96: 0n,
         },
       ],
+    });
+    const data = encodeFunctionData({
+      abi: MULTICALL_ABI,
+      functionName: 'multicall',
+      args: [BigInt(params.deadline), [swapData]],
     });
 
     return {

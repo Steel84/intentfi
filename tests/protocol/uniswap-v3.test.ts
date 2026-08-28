@@ -16,6 +16,9 @@ describe('Uniswap V3 transaction adapter', () => {
     expect(tx.to).toBe('0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E');
     expect(tx.value).toBe('0');
     expect(tx.data).toMatch(/^0x[0-9a-f]+$/);
+    // SwapRouter02 uses deadline-protected multicall around the 7-field swap tuple.
+    expect(tx.data.slice(0, 10)).toBe('0x5ae401dc');
+    expect(tx.data).not.toContain('414bf389');
     expect(tx.data.length).toBeGreaterThan(2 + 8 + 32 * 8);
   });
 

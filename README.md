@@ -75,9 +75,9 @@ User Input (NL or Form)
 - **Frontend:** React 18 + TypeScript + Vite
 - **Wallet:** wagmi 2 + ConnectKit
 - **Chain:** Ethereum Sepolia testnet
-- **DEX:** Uniswap V3 (QuoterV2 + SwapRouter)
+- **DEX:** Uniswap V3 (QuoterV2 + SwapRouter02 with deadline-protected multicall)
 - **RPC:** Configurable primary + fallback with health check
-- **Tests:** Vitest (58 tests)
+- **Tests:** Vitest (59 tests)
 - **NL Parser:** validated deterministic fallback parser in the static client; optional LLM integration belongs behind a server-side proxy
 
 ## Quick Start
