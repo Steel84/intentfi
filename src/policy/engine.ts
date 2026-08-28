@@ -1,4 +1,11 @@
-import { PolicyConfig, PolicyResult, PolicyCheck, SwapIntent, Quote, SimulationResult } from '../types';
+import {
+  PolicyConfig,
+  PolicyResult,
+  PolicyCheck,
+  SwapIntent,
+  Quote,
+  SimulationResult,
+} from '../types';
 import { DEFAULT_POLICY } from '../config';
 
 /**
@@ -14,7 +21,7 @@ export function evaluatePolicy(
   intent: SwapIntent,
   quote: Quote,
   simulation: SimulationResult,
-  config: PolicyConfig = DEFAULT_POLICY
+  config: PolicyConfig = DEFAULT_POLICY,
 ): PolicyResult {
   const checks: PolicyCheck[] = [];
   const protocol = 'uniswap-v3';
@@ -29,7 +36,7 @@ export function evaluatePolicy(
 
   checks.push({
     name: 'Protocol Allowed',
-    passed: config.allowedProtocols.includes(protocol),
+    passed: config.allowedProtocols.map((value) => value.toLowerCase()).includes(protocol),
     actual: protocol,
     limit: config.allowedProtocols.join(', '),
   });
@@ -67,9 +74,15 @@ export function evaluatePolicy(
   // 3. Price impact check
   checks.push({
     name: 'Price Impact Within Limit',
-    passed: quote.priceImpactBps <= config.maxPriceImpactBps,
-    actual: `${quote.priceImpactBps} bps`,
+    passed:
+      typeof quote.priceImpactBps === 'number' && quote.priceImpactBps <= config.maxPriceImpactBps,
+    actual:
+      typeof quote.priceImpactBps === 'number' ? `${quote.priceImpactBps} bps` : 'unavailable',
     limit: `${config.maxPriceImpactBps} bps`,
+    reason:
+      typeof quote.priceImpactBps !== 'number'
+        ? 'Pool spot price unavailable; execution is blocked'
+        : undefined,
   });
 
   // 4. Simulation passed
@@ -93,7 +106,7 @@ export function evaluatePolicy(
     reason: !simulation.allowanceCheck ? 'Token approval required' : undefined,
   });
 
-  const allPassed = checks.every(c => c.passed);
+  const allPassed = checks.every((c) => c.passed);
 
   return {
     status: allPassed ? 'PASS' : 'REJECT',

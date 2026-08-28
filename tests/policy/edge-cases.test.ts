@@ -68,7 +68,7 @@ describe('Policy Engine - Edge Cases', () => {
     const sim = { ...baseSimulation, success: false, balanceCheck: false };
     const result = evaluatePolicy(intent, quote, sim, policy);
     expect(result.status).toBe('REJECT');
-    const failedChecks = result.checks.filter(c => !c.passed);
+    const failedChecks = result.checks.filter((c) => !c.passed);
     expect(failedChecks.length).toBeGreaterThan(3);
   });
 
@@ -82,7 +82,20 @@ describe('Policy Engine - Edge Cases', () => {
     // Policy engine uses intent.tokenIn.toUpperCase() so lowercase passes
     const intent = { ...baseIntent, tokenIn: 'usdc' };
     const result = evaluatePolicy(intent, baseQuote, baseSimulation, policy);
-    expect(result.checks.find(c => c.name === 'Token In Allowed')?.passed).toBe(true);
+    expect(result.checks.find((c) => c.name === 'Token In Allowed')?.passed).toBe(true);
+  });
+
+  it('should REJECT when price impact is unavailable', () => {
+    const result = evaluatePolicy(
+      baseIntent,
+      { ...baseQuote, priceImpactBps: undefined },
+      baseSimulation,
+      policy,
+    );
+    expect(result.status).toBe('REJECT');
+    expect(result.checks.find((c) => c.name === 'Price Impact Within Limit')?.reason).toContain(
+      'unavailable',
+    );
   });
 
   it('should PASS with zero slippage', () => {

@@ -4,7 +4,7 @@ import { PolicyConfig } from '../types';
 export const CHAIN_CONFIG = {
   chainId: 11155111,
   name: 'Sepolia',
-  rpcPrimary: import.meta.env.VITE_RPC_PRIMARY || 'https://rpc.sepolia.org',
+  rpcPrimary: import.meta.env.VITE_RPC_PRIMARY || 'https://1rpc.io/sepolia',
   rpcFallback: import.meta.env.VITE_RPC_FALLBACK || 'https://ethereum-sepolia-rpc.publicnode.com',
   explorer: 'https://sepolia.etherscan.io',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
@@ -52,3 +52,40 @@ export const PROTOCOL_CONFIG = {
   router: UNISWAP_V3_ADDRESSES.swapRouter,
   quoter: UNISWAP_V3_ADDRESSES.quoterV2,
 } as const;
+
+/** Safely load locally persisted policy values without trusting arbitrary JSON. */
+export function normalizePolicyConfig(value: unknown): PolicyConfig {
+  const candidate = value && typeof value === 'object' ? (value as Partial<PolicyConfig>) : {};
+  const numberInRange = (input: unknown, fallback: number, max: number) =>
+    typeof input === 'number' && Number.isFinite(input) && input >= 0 && input <= max
+      ? input
+      : fallback;
+  const allowedTokens = Array.isArray(candidate.allowedTokens)
+    ? candidate.allowedTokens
+        .filter((token): token is string => typeof token === 'string')
+        .map((token) => token.toUpperCase())
+        .filter(Boolean)
+    : DEFAULT_POLICY.allowedTokens;
+  const allowedProtocols = Array.isArray(candidate.allowedProtocols)
+    ? candidate.allowedProtocols
+        .filter((protocol): protocol is string => typeof protocol === 'string')
+        .map((protocol) => protocol.toLowerCase())
+        .filter(Boolean)
+    : DEFAULT_POLICY.allowedProtocols;
+
+  return {
+    maxTransactionValueUsd: numberInRange(
+      candidate.maxTransactionValueUsd,
+      DEFAULT_POLICY.maxTransactionValueUsd,
+      1_000_000,
+    ),
+    maxSlippageBps: Math.floor(
+      numberInRange(candidate.maxSlippageBps, DEFAULT_POLICY.maxSlippageBps, 10_000),
+    ),
+    maxPriceImpactBps: Math.floor(
+      numberInRange(candidate.maxPriceImpactBps, DEFAULT_POLICY.maxPriceImpactBps, 10_000),
+    ),
+    allowedProtocols: allowedProtocols.length ? allowedProtocols : DEFAULT_POLICY.allowedProtocols,
+    allowedTokens: allowedTokens.length ? allowedTokens : DEFAULT_POLICY.allowedTokens,
+  };
+}

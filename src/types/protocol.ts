@@ -16,7 +16,7 @@ export type Quote = {
   expectedOutput: string;
   minimumOutput: string;
   price: string;
-  priceImpactBps: number;
+  priceImpactBps?: number;
   slippageBps: number;
   gasEstimate: string;
   route?: string;

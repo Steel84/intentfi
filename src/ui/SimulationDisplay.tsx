@@ -48,7 +48,9 @@ export function SimulationDisplay({ result }: { result: SimulationResult }) {
               </span>
             </div>
           </div>
-          <p className="sim-block"><strong>Transaction will NOT be submitted.</strong></p>
+          <p className="sim-block">
+            <strong>Transaction will NOT be submitted.</strong>
+          </p>
         </div>
       )}
     </div>

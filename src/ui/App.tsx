@@ -11,6 +11,7 @@ import { TxHistory } from './TxHistory';
 import { RpcStatus } from './RpcStatus';
 import { PolicySettings } from './PolicySettings';
 import { FlowProgress } from './FlowProgress';
+import { AgentStatus } from './AgentStatus';
 import { useSwapFlow } from './useSwapFlow';
 import { CHAIN_CONFIG } from '../config';
 
@@ -58,7 +59,9 @@ export default function App() {
           <div className="wrong-chain">
             <div className="card">
               <h3>Wrong Network</h3>
-              <p>Please switch to <strong>{CHAIN_CONFIG.name}</strong> to use IntentFi.</p>
+              <p>
+                Please switch to <strong>{CHAIN_CONFIG.name}</strong> to use IntentFi.
+              </p>
               <button className="btn-switch" onClick={flow.switchToSepolia}>
                 Switch to {CHAIN_CONFIG.name}
               </button>
@@ -67,9 +70,18 @@ export default function App() {
         ) : (
           <div className="flow">
             <FlowProgress state={flow.state} />
+            <AgentStatus
+              state={flow.state}
+              quote={flow.quote}
+              policy={flow.policyResult}
+              simulation={flow.simulation}
+            />
             <PolicySettings config={flow.policyConfig} onSave={flow.updatePolicyConfig} />
             <IntentInput
-              onIntentParsed={(intent) => { setInputError(null); flow.runFlow(intent); }}
+              onIntentParsed={(intent) => {
+                setInputError(null);
+                flow.runFlow(intent);
+              }}
               onError={(error) => setInputError(error)}
               onStateChange={() => {}}
               disabled={flow.state === 'executing' || flow.approving}
@@ -117,7 +129,7 @@ export default function App() {
             )}
 
             {flow.intent && <IntentDisplay intent={flow.intent} />}
-            {flow.quote && <QuoteDisplay quote={flow.quote} />}
+            {flow.quote && <QuoteDisplay quote={flow.quote} onRefresh={flow.refreshQuote} />}
             {flow.simulation && <SimulationDisplay result={flow.simulation} />}
             {flow.policyResult && <PolicyDisplay result={flow.policyResult} />}
 

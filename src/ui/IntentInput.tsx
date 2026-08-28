@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { SwapIntent } from '../types';
-import { parseIntent, validateSwapIntent } from '../intent/parser';
-import { CHAIN_CONFIG } from '../config';
+import { validateSwapIntent, percentToBps, tryFallbackParse } from '../intent/parser';
 import { AppState } from './App';
 
 type Props = {
@@ -28,38 +27,23 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
     if (!input.trim()) return;
     setLoading(true);
 
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    if (!apiKey) {
-      // Fallback: try simple regex parse
-      const fallback = tryFallbackParse(input);
-      if (fallback) {
-        onIntentParsed(fallback);
-      } else {
-        onError('Could not parse intent. Try the form input or use a clearer format like: "Swap 100 USDC to ETH, max 0.5% slippage"');
-      }
-      setLoading(false);
-      return;
-    }
-
-    const result = await parseIntent(input, apiKey);
+    // Keep the shipped static app free of browser-exposed provider secrets.
+    // The validated deterministic parser is enough for the demo scenario.
+    const fallback = tryFallbackParse(input);
     setLoading(false);
-
-    if (result.success) {
-      onIntentParsed(result.intent);
+    if (fallback) {
+      onIntentParsed(fallback);
     } else {
-      onError(result.error);
+      onError(
+        'Could not parse intent. Try the form input or use a clearer format like: "Swap 100 USDC to ETH, max 0.5% slippage"',
+      );
     }
   };
 
   const handleFormSubmit = () => {
-    if (!formAmount || parseFloat(formAmount) <= 0) {
-      onError('Please enter a valid amount');
-      return;
-    }
-
-    const slippageBps = Math.round(parseFloat(formSlippage) * 100);
-    if (isNaN(slippageBps) || slippageBps < 0 || slippageBps > 10000) {
-      onError('Slippage must be between 0% and 100%');
+    const slippageBps = percentToBps(formSlippage);
+    if (slippageBps < 0) {
+      onError('Slippage must be a percentage from 0% to 100% with up to two decimal places');
       return;
     }
 
@@ -105,7 +89,7 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder='Swap 100 USDC to ETH, max 0.5% slippage'
+              placeholder="Swap 100 USDC to ETH, max 0.5% slippage"
               disabled={disabled || loading}
               onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
             />
@@ -183,24 +167,5 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
   );
 }
 
-/**
- * Fallback parser (no LLM needed)
- * Handles: "Swap X TOKEN to/for TOKEN[, max/maximum Y% slippage]"
- */
-function tryFallbackParse(input: string): SwapIntent | null {
-  const match = input.match(
-    /swap\s+([\d.]+)\s+(\w+)\s+(?:to|for)\s+(\w+)(?:.*?(?:max|maximum)\s+([\d.]+)%\s*slippage)?/i
-  );
-  if (!match) return null;
-
-  const [, amount, tokenIn, tokenOut, slippage] = match;
-  const result = validateSwapIntent({
-    action: 'swap',
-    tokenIn: tokenIn.toUpperCase(),
-    tokenOut: tokenOut.toUpperCase(),
-    amountIn: amount,
-    maxSlippageBps: slippage ? Math.round(parseFloat(slippage) * 100) : 50,
-  });
-
-  return result.success ? result.intent : null;
-}
+/** Fallback parsing is shared with the test suite so the no-key path stays real. */
+export { tryFallbackParse };

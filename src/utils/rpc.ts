@@ -25,14 +25,14 @@ export async function getHealthyClient(): Promise<PublicClient> {
   const now = Date.now();
 
   // If we have an active client and it's not stale, use it
-  if (activeClient && (now - lastHealthCheck) < HEALTH_CHECK_INTERVAL) {
+  if (activeClient && now - lastHealthCheck < HEALTH_CHECK_INTERVAL) {
     return activeClient;
   }
 
   // Try primary
   const primary = createPublicClient({
     chain: sepolia,
-    transport: http(CHAIN_CONFIG.rpcPrimary),
+    transport: http(CHAIN_CONFIG.rpcPrimary, { timeout: 10_000 }),
   });
 
   try {
@@ -48,7 +48,7 @@ export async function getHealthyClient(): Promise<PublicClient> {
   // Try fallback
   const fallback = createPublicClient({
     chain: sepolia,
-    transport: http(CHAIN_CONFIG.rpcFallback),
+    transport: http(CHAIN_CONFIG.rpcFallback, { timeout: 10_000 }),
   });
 
   try {

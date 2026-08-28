@@ -12,7 +12,7 @@ export type PolicyCheck = {
 };
 
 export type PolicyResult = {
-  status: "PASS" | "REJECT";
+  status: 'PASS' | 'REJECT';
   checks: PolicyCheck[];
 };
 

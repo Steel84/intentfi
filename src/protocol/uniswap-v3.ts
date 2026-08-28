@@ -1,4 +1,11 @@
-import { SwapProtocol, QuoteParams, Quote, SwapParams, TransactionRequest, ProtocolMetadata } from '../types';
+import {
+  SwapProtocol,
+  QuoteParams,
+  Quote,
+  SwapParams,
+  TransactionRequest,
+  ProtocolMetadata,
+} from '../types';
 import { CHAIN_CONFIG } from '../config';
 import { getHealthyClient } from '../utils/rpc';
 import { toBaseUnits, fromBaseUnits, getTokenDecimals } from '../utils/tokens';
@@ -23,6 +30,14 @@ const SWAP_ROUTER_ABI = parseAbi([
   'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)',
 ]);
 
+const FACTORY_ABI = parseAbi([
+  'function getPool(address tokenA, address tokenB, uint24 fee) view returns (address pool)',
+]);
+
+const POOL_ABI = parseAbi([
+  'function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)',
+]);
+
 const ERC20_ABI = parseAbi([
   'function balanceOf(address owner) view returns (uint256)',
   'function allowance(address owner, address spender) view returns (uint256)',
@@ -39,7 +54,6 @@ const FEE_TIER = 3000;
  * Uses live on-chain data via QuoterV2 contract.
  */
 export class UniswapV3Adapter implements SwapProtocol {
-
   private resolveAddress(symbol: string): `0x${string}` {
     const upper = symbol.toUpperCase();
     if (upper === 'ETH' || upper === 'WETH') return UNISWAP_SEPOLIA.WETH;
@@ -48,8 +62,15 @@ export class UniswapV3Adapter implements SwapProtocol {
   }
 
   async getQuote(params: QuoteParams): Promise<Quote> {
+    if (params.chainId !== CHAIN_CONFIG.chainId)
+      throw new Error(`Unsupported chain: ${params.chainId}`);
+    if (params.tokenIn.toUpperCase() === 'ETH')
+      throw new Error('Native ETH input is not supported. Use WETH as the input token.');
+    if (params.tokenIn.toUpperCase() === params.tokenOut.toUpperCase())
+      throw new Error('Input and output tokens must be different');
     const slippageBps = params.slippageBps ?? 50;
-    if (!Number.isInteger(slippageBps) || slippageBps < 0 || slippageBps > 10000) throw new Error('Invalid slippage');
+    if (!Number.isInteger(slippageBps) || slippageBps < 0 || slippageBps > 10000)
+      throw new Error('Invalid slippage');
     const client = await getHealthyClient();
     const tokenInAddress = this.resolveAddress(params.tokenIn);
     const tokenOutAddress = this.resolveAddress(params.tokenOut);
@@ -62,27 +83,35 @@ export class UniswapV3Adapter implements SwapProtocol {
       address: UNISWAP_SEPOLIA.quoterV2,
       abi: QUOTER_ABI,
       functionName: 'quoteExactInputSingle',
-      args: [{
-        tokenIn: tokenInAddress,
-        tokenOut: tokenOutAddress,
-        amountIn: amountInWei,
-        fee: FEE_TIER,
-        sqrtPriceLimitX96: 0n,
-      }],
+      args: [
+        {
+          tokenIn: tokenInAddress,
+          tokenOut: tokenOutAddress,
+          amountIn: amountInWei,
+          fee: FEE_TIER,
+          sqrtPriceLimitX96: 0n,
+        },
+      ],
     });
 
     const [amountOut, , , gasEstimate] = result.result as [bigint, bigint, number, bigint];
 
+    const priceImpactBps = await this.getPriceImpactBps(
+      client,
+      tokenInAddress,
+      tokenOutAddress,
+      amountInWei,
+      amountOut,
+      decimalsIn,
+      decimalsOut,
+    );
     const expectedOutput = fromBaseUnits(amountOut, decimalsOut);
     // Calculate minimum output with slippage (default 0.5%)
-    const minOut = amountOut * BigInt(10000 - slippageBps) / 10000n;
+    const minOut = (amountOut * BigInt(10000 - slippageBps)) / 10000n;
     const minimumOutput = fromBaseUnits(minOut, decimalsOut);
 
     // Price = amountOut / amountIn (normalized)
-    const price = (Number(amountOut) / 10 ** decimalsOut) / (Number(amountInWei) / 10 ** decimalsIn);
-
-    // Approximate price impact (simplified for v0.1)
-    const priceImpactBps = 10; // Will improve with pool data
+    const price = Number(amountOut) / 10 ** decimalsOut / (Number(amountInWei) / 10 ** decimalsIn);
 
     return {
       inputAmount: `${params.amountIn} ${params.tokenIn}`,
@@ -98,6 +127,12 @@ export class UniswapV3Adapter implements SwapProtocol {
   }
 
   async buildTransaction(params: SwapParams): Promise<TransactionRequest> {
+    if (params.chainId !== CHAIN_CONFIG.chainId)
+      throw new Error(`Unsupported chain: ${params.chainId}`);
+    if (params.tokenIn.toUpperCase() === 'ETH')
+      throw new Error('Native ETH input is not supported. Use WETH as the input token.');
+    if (params.tokenIn.toUpperCase() === params.tokenOut.toUpperCase())
+      throw new Error('Input and output tokens must be different');
     const tokenInAddress = this.resolveAddress(params.tokenIn);
     const tokenOutAddress = this.resolveAddress(params.tokenOut);
     const decimalsIn = getTokenDecimals(params.tokenIn);
@@ -108,16 +143,18 @@ export class UniswapV3Adapter implements SwapProtocol {
     const data = encodeFunctionData({
       abi: SWAP_ROUTER_ABI,
       functionName: 'exactInputSingle',
-      args: [{
-        tokenIn: tokenInAddress,
-        tokenOut: tokenOutAddress,
-        fee: FEE_TIER,
-        recipient: params.recipient as `0x${string}`,
-        deadline: BigInt(params.deadline),
-        amountIn: amountInWei,
-        amountOutMinimum: minAmountOutWei,
-        sqrtPriceLimitX96: 0n,
-      }],
+      args: [
+        {
+          tokenIn: tokenInAddress,
+          tokenOut: tokenOutAddress,
+          fee: FEE_TIER,
+          recipient: params.recipient as `0x${string}`,
+          deadline: BigInt(params.deadline),
+          amountIn: amountInWei,
+          amountOutMinimum: minAmountOutWei,
+          sqrtPriceLimitX96: 0n,
+        },
+      ],
     });
 
     return {
@@ -136,6 +173,49 @@ export class UniswapV3Adapter implements SwapProtocol {
       chainId: CHAIN_CONFIG.chainId,
       supportedTokens: ['USDC', 'WETH', 'ETH'],
     };
+  }
+
+  /**
+   * Compare the quoted execution price with the current pool spot price.
+   * All comparisons use integer ratios, so policy decisions never depend on floats.
+   */
+  private async getPriceImpactBps(
+    client: Awaited<ReturnType<typeof getHealthyClient>>,
+    tokenIn: `0x${string}`,
+    tokenOut: `0x${string}`,
+    amountIn: bigint,
+    amountOut: bigint,
+    decimalsIn: number,
+    decimalsOut: number,
+  ): Promise<number | undefined> {
+    const pool = (await client.readContract({
+      address: UNISWAP_SEPOLIA.factory,
+      abi: FACTORY_ABI,
+      functionName: 'getPool',
+      args: [tokenIn, tokenOut, FEE_TIER],
+    })) as `0x${string}`;
+    if (!pool || /^0x0{40}$/i.test(pool)) return undefined;
+
+    const slot0 = (await client.readContract({
+      address: pool,
+      abi: POOL_ABI,
+      functionName: 'slot0',
+    })) as readonly [bigint, ...unknown[]];
+    const sqrtPriceX96 = slot0[0];
+    if (!sqrtPriceX96 || sqrtPriceX96 <= 0n || amountIn <= 0n || amountOut <= 0n) return undefined;
+
+    const token0IsIn = tokenIn.toLowerCase() < tokenOut.toLowerCase();
+    const q192 = 2n ** 192n;
+    const scale = 1_000_000_000_000_000_000n;
+    const sqrtSquared = sqrtPriceX96 * sqrtPriceX96;
+    const inScale = 10n ** BigInt(decimalsIn);
+    const outScale = 10n ** BigInt(decimalsOut);
+    const spot = token0IsIn
+      ? (sqrtSquared * inScale * scale) / (q192 * outScale)
+      : (q192 * inScale * scale) / (sqrtSquared * outScale);
+    const execution = (amountOut * inScale * scale) / (amountIn * outScale);
+    if (spot <= 0n || execution >= spot) return 0;
+    return Number(((spot - execution) * 10_000n) / spot);
   }
 
   /**

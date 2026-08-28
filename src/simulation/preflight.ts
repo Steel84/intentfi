@@ -18,7 +18,7 @@ import { toBaseUnits, getTokenDecimals } from '../utils/tokens';
 export async function simulateTransaction(
   intent: SwapIntent,
   tx: TransactionRequest,
-  userAddress: `0x${string}`
+  userAddress: `0x${string}`,
 ): Promise<SimulationResult> {
   const client = await getHealthyClient();
   const decimalsIn = getTokenDecimals(intent.tokenIn);

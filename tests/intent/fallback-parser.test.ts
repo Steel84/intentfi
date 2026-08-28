@@ -1,26 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateSwapIntent } from '../../src/intent/parser';
-
-// We need to test the fallback regex parser directly
-// Since it's a private function in IntentInput, let's extract and test the logic
-
-function tryFallbackParse(input: string) {
-  const match = input.match(
-    /swap\s+([\d.]+)\s+(\w+)\s+(?:to|for)\s+(\w+)(?:.*?(?:max|maximum)\s+([\d.]+)%\s*slippage)?/i
-  );
-  if (!match) return null;
-
-  const [, amount, tokenIn, tokenOut, slippage] = match;
-  const result = validateSwapIntent({
-    action: 'swap',
-    tokenIn: tokenIn.toUpperCase(),
-    tokenOut: tokenOut.toUpperCase(),
-    amountIn: amount,
-    maxSlippageBps: slippage ? Math.round(parseFloat(slippage) * 100) : 50,
-  });
-
-  return result.success ? result.intent : null;
-}
+import { tryFallbackParse } from '../../src/intent/parser';
 
 describe('Fallback Regex Parser', () => {
   it('should parse "Swap 100 USDC to ETH, max 0.5% slippage"', () => {
@@ -49,10 +28,14 @@ describe('Fallback Regex Parser', () => {
   });
 
   it('should parse decimal amounts', () => {
-    const result = tryFallbackParse('swap 0.5 ETH to USDC');
+    const result = tryFallbackParse('swap 0.5 WETH to USDC');
     expect(result).not.toBeNull();
     expect(result!.amountIn).toBe('0.5');
-    expect(result!.tokenIn).toBe('ETH');
+    expect(result!.tokenIn).toBe('WETH');
+  });
+
+  it('should reject an unsupported token instead of sending it to the quote layer', () => {
+    expect(tryFallbackParse('Swap 1 SHIB to ETH')).toBeNull();
   });
 
   it('should return null for non-swap input', () => {

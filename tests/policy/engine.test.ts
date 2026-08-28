@@ -41,35 +41,35 @@ describe('Policy Engine', () => {
   it('should PASS valid swap within all limits', () => {
     const result = evaluatePolicy(baseIntent, baseQuote, baseSimulation, policy);
     expect(result.status).toBe('PASS');
-    expect(result.checks.every(c => c.passed)).toBe(true);
+    expect(result.checks.every((c) => c.passed)).toBe(true);
   });
 
   it('should REJECT when slippage exceeds limit', () => {
     const intent = { ...baseIntent, maxSlippageBps: 100 };
     const result = evaluatePolicy(intent, baseQuote, baseSimulation, policy);
     expect(result.status).toBe('REJECT');
-    expect(result.checks.find(c => c.name === 'Slippage Within Limit')?.passed).toBe(false);
+    expect(result.checks.find((c) => c.name === 'Slippage Within Limit')?.passed).toBe(false);
   });
 
   it('should REJECT disallowed token', () => {
     const intent = { ...baseIntent, tokenIn: 'SHIB' };
     const result = evaluatePolicy(intent, baseQuote, baseSimulation, policy);
     expect(result.status).toBe('REJECT');
-    expect(result.checks.find(c => c.name === 'Token In Allowed')?.passed).toBe(false);
+    expect(result.checks.find((c) => c.name === 'Token In Allowed')?.passed).toBe(false);
   });
 
   it('should REJECT when price impact too high', () => {
     const quote = { ...baseQuote, priceImpactBps: 200 };
     const result = evaluatePolicy(baseIntent, quote, baseSimulation, policy);
     expect(result.status).toBe('REJECT');
-    expect(result.checks.find(c => c.name === 'Price Impact Within Limit')?.passed).toBe(false);
+    expect(result.checks.find((c) => c.name === 'Price Impact Within Limit')?.passed).toBe(false);
   });
 
   it('should REJECT when simulation fails', () => {
     const sim = { ...baseSimulation, success: false, error: 'Execution reverted' };
     const result = evaluatePolicy(baseIntent, baseQuote, sim, policy);
     expect(result.status).toBe('REJECT');
-    expect(result.checks.find(c => c.name === 'Simulation Passed')?.passed).toBe(false);
+    expect(result.checks.find((c) => c.name === 'Simulation Passed')?.passed).toBe(false);
   });
 
   it('should REJECT insufficient balance', () => {

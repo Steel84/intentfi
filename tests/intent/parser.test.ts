@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { validateSwapIntent } from '../../src/intent/parser';
+import { percentToBps, validateSwapIntent } from '../../src/intent/parser';
 
 describe('Intent Validation', () => {
+  it('converts percentage slippage without floating-point rounding', () => {
+    expect(percentToBps('0.5')).toBe(50);
+    expect(percentToBps('1.25')).toBe(125);
+    expect(percentToBps('0.001')).toBe(-1);
+  });
+
   it('should validate correct swap intent', () => {
     const result = validateSwapIntent({
       action: 'swap',
@@ -57,6 +63,28 @@ describe('Intent Validation', () => {
       action: 'lend',
       tokenIn: 'USDC',
       amountIn: '100',
+      maxSlippageBps: 50,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject unsupported tokens before quoting', () => {
+    const result = validateSwapIntent({
+      action: 'swap',
+      tokenIn: 'SHIB',
+      tokenOut: 'ETH',
+      amountIn: '1',
+      maxSlippageBps: 50,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject native ETH as an input token', () => {
+    const result = validateSwapIntent({
+      action: 'swap',
+      tokenIn: 'ETH',
+      tokenOut: 'USDC',
+      amountIn: '1',
       maxSlippageBps: 50,
     });
     expect(result.success).toBe(false);

@@ -16,9 +16,7 @@ export function TxHistory({ entries }: Props) {
               <span className="history-action">
                 {entry.intent.amountIn} {entry.intent.tokenIn} \u2192 {entry.intent.tokenOut}
               </span>
-              <span className="history-time">
-                {new Date(entry.timestamp).toLocaleTimeString()}
-              </span>
+              <span className="history-time">{new Date(entry.timestamp).toLocaleTimeString()}</span>
             </div>
             <a
               href={`${CHAIN_CONFIG.explorer}/tx/${entry.hash}`}

@@ -14,13 +14,14 @@ export function getTokenDecimals(symbol: string): number {
 export function toBaseUnits(amount: string, decimals: number): bigint {
   if (!Number.isInteger(decimals) || decimals < 0) throw new Error('Invalid token decimals');
   const normalized = amount.trim();
-  if (!/^\d+(\.\d+)?$/.test(normalized)) throw new Error('Amount must be a positive decimal number');
+  if (!/^\d+(\.\d+)?$/.test(normalized))
+    throw new Error('Amount must be a positive decimal number');
   const [whole, fraction = ''] = normalized.split('.');
   if (fraction.length > decimals && /[1-9]/.test(fraction.slice(decimals))) {
     throw new Error(`Amount has more than ${decimals} decimal places`);
   }
   const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
-  const value = BigInt(whole) * (10n ** BigInt(decimals)) + BigInt(paddedFraction || '0');
+  const value = BigInt(whole) * 10n ** BigInt(decimals) + BigInt(paddedFraction || '0');
   if (value <= 0n) throw new Error('Amount must be greater than zero');
   return value;
 }

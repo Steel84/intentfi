@@ -23,7 +23,9 @@ export function ExecutionPanel({ intent, quote, onConfirmClick, onCancelClick }:
       <div className="execution-summary">
         <p>You are swapping:</p>
         <p className="swap-detail">
-          <strong>{intent.amountIn} {intent.tokenIn}</strong>
+          <strong>
+            {intent.amountIn} {intent.tokenIn}
+          </strong>
           <span> \u2192 </span>
           <strong>{quote.expectedOutput}</strong>
         </p>
@@ -32,18 +34,10 @@ export function ExecutionPanel({ intent, quote, onConfirmClick, onCancelClick }:
         <p>Protocol: Uniswap V3</p>
       </div>
       <div className="execution-buttons">
-        <button
-          className="btn-confirm"
-          onClick={handleConfirm}
-          disabled={confirming}
-        >
+        <button className="btn-confirm" onClick={handleConfirm} disabled={confirming}>
           {confirming ? 'Sending...' : 'Confirm Transaction'}
         </button>
-        <button
-          className="btn-cancel"
-          onClick={onCancelClick}
-          disabled={confirming}
-        >
+        <button className="btn-cancel" onClick={onCancelClick} disabled={confirming}>
           Cancel
         </button>
       </div>
