@@ -1,15 +1,11 @@
-/**
- * Wallet Connection Module
- *
- * Standard browser wallet flow:
- * - connect
- * - detect chain
- * - display address/balances
- * - request network switch
- * - request tx signature
- * - handle rejection/errors
- *
- * NO private key storage. NO custodial wallets.
- */
+import { CHAIN_CONFIG } from '../config';
 
-export { }; // Placeholder - will use wagmi/connectkit hooks
+/** Wallet safety helpers. Keys never enter the application. */
+export function isSupportedChain(chainId: number | undefined): boolean {
+  return chainId === CHAIN_CONFIG.chainId;
+}
+
+export function shortenAddress(address: string, visible = 4): string {
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) return address;
+  return `${address.slice(0, visible + 2)}…${address.slice(-visible)}`;
+}

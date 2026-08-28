@@ -6,6 +6,7 @@ import { evaluatePolicy } from '../policy/engine';
 import { simulateTransaction } from '../simulation/preflight';
 import { CHAIN_CONFIG, DEFAULT_POLICY } from '../config';
 import { AppState } from './App';
+import { isSupportedChain } from '../wallet/connection';
 
 export type TxHistoryEntry = {
   hash: string;
@@ -48,7 +49,7 @@ export function useSwapFlow() {
     policyConfig: loadPolicyConfig(),
   });
 
-  const isWrongChain = chainId !== undefined && chainId !== CHAIN_CONFIG.chainId;
+  const isWrongChain = chainId !== undefined && !isSupportedChain(chainId);
 
   const reset = useCallback(() => {
     setFlowState(prev => ({
