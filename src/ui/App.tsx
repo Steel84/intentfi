@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useAccount, useBalance } from 'wagmi';
 import { ConnectKitButton } from 'connectkit';
 import { IntentInput } from './IntentInput';

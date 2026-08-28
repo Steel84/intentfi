@@ -1,5 +1,5 @@
 import { SwapProtocol, QuoteParams, Quote, SwapParams, TransactionRequest, ProtocolMetadata } from '../types';
-import { CHAIN_CONFIG, TOKENS } from '../config';
+import { CHAIN_CONFIG } from '../config';
 import { getHealthyClient } from '../utils/rpc';
 import { toBaseUnits, fromBaseUnits, getTokenDecimals } from '../utils/tokens';
 import { encodeFunctionData, parseAbi } from 'viem';

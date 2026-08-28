@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { SwapIntent } from '../types';
 
 export function IntentDisplay({ intent }: { intent: SwapIntent }) {

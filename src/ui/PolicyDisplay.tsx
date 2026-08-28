@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { PolicyResult } from '../types';
 
 export function PolicyDisplay({ result }: { result: PolicyResult }) {

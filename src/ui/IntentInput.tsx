@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { SwapIntent } from '../types';
 import { parseIntent, validateSwapIntent } from '../intent/parser';
 import { AppState } from './App';

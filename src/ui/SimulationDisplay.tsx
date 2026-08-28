@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { SimulationResult } from '../types';
 
 export function SimulationDisplay({ result }: { result: SimulationResult }) {

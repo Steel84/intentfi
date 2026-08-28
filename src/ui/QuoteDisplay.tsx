@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Quote } from '../types';
 
 export function QuoteDisplay({ quote }: { quote: Quote }) {
