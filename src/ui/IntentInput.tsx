@@ -138,7 +138,6 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
               >
                 <option value="USDC">USDC</option>
                 <option value="WETH">WETH</option>
-                <option value="ETH">ETH</option>
               </select>
             </div>
             <div className="form-field">

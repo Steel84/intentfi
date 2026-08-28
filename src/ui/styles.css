@@ -603,3 +603,13 @@ body {
   border-color: var(--accent);
   color: var(--accent);
 }
+
+/* Local deterministic policy settings */
+.policy-settings { margin-bottom: -0.35rem; }
+.settings-toggle { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; padding: 0.25rem 0; }
+.settings-toggle:hover { color: var(--text); }
+.settings-panel { margin-top: 0.5rem; padding: 0.9rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; display: grid; gap: 0.65rem; }
+.settings-panel p { color: var(--text-muted); font-size: 0.78rem; }
+.settings-panel label { display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-size: 0.82rem; gap: 1rem; }
+.settings-panel input { width: 90px; padding: 0.45rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 5px; }
+.btn-save-settings { justify-self: start; padding: 0.45rem 0.8rem; border: none; border-radius: 5px; background: var(--accent); color: white; cursor: pointer; font-weight: 600; }

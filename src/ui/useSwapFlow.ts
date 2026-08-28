@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useAccount, useWalletClient, usePublicClient, useSwitchChain } from 'wagmi';
-import { SwapIntent, Quote, PolicyResult, SimulationResult, TransactionRequest } from '../types';
+import { SwapIntent, Quote, PolicyResult, SimulationResult, TransactionRequest, PolicyConfig } from '../types';
 import { uniswapAdapter } from '../protocol/uniswap-v3';
 import { evaluatePolicy } from '../policy/engine';
 import { simulateTransaction } from '../simulation/preflight';
-import { CHAIN_CONFIG } from '../config';
+import { CHAIN_CONFIG, DEFAULT_POLICY } from '../config';
 import { AppState } from './App';
 
 export type TxHistoryEntry = {
@@ -25,6 +25,7 @@ export type FlowState = {
   needsApproval: boolean;
   approving: boolean;
   txHistory: TxHistoryEntry[];
+  policyConfig: PolicyConfig;
 };
 
 export function useSwapFlow() {
@@ -44,6 +45,7 @@ export function useSwapFlow() {
     needsApproval: false,
     approving: false,
     txHistory: [],
+    policyConfig: loadPolicyConfig(),
   });
 
   const isWrongChain = chainId !== undefined && chainId !== CHAIN_CONFIG.chainId;
@@ -159,7 +161,7 @@ export function useSwapFlow() {
     }
 
     // 4. Policy check
-    const policyResult = evaluatePolicy(intent, quote, simulation);
+    const policyResult = evaluatePolicy(intent, quote, simulation, flowState.policyConfig);
     setFlowState(prev => ({ ...prev, policyResult, state: 'policy-done' }));
 
     if (policyResult.status === 'REJECT') {
@@ -173,7 +175,7 @@ export function useSwapFlow() {
 
     // All checks passed - ready for user approval
     setFlowState(prev => ({ ...prev, state: 'ready' }));
-  }, [address, isWrongChain]);
+  }, [address, isWrongChain, flowState.policyConfig]);
 
   /**
    * Approve ERC20 token spending for the router
@@ -292,6 +294,11 @@ export function useSwapFlow() {
     }
   }, [walletClient, address, flowState.intent, flowState.quote, publicClient]);
 
+  const updatePolicyConfig = useCallback((next: PolicyConfig) => {
+    localStorage.setItem('intentfi-policy', JSON.stringify(next));
+    setFlowState(prev => ({ ...prev, policyConfig: next }));
+  }, []);
+
   return {
     ...flowState,
     isWrongChain,
@@ -300,5 +307,14 @@ export function useSwapFlow() {
     approveToken,
     switchToSepolia,
     reset,
+    updatePolicyConfig,
   };
+}
+
+function loadPolicyConfig(): PolicyConfig {
+  try {
+    const stored = localStorage.getItem('intentfi-policy');
+    if (stored) return { ...DEFAULT_POLICY, ...JSON.parse(stored) };
+  } catch { /* use safe defaults */ }
+  return DEFAULT_POLICY;
 }
