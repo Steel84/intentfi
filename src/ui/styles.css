@@ -1,0 +1,253 @@
+:root {
+  --bg: #0a0b0d;
+  --surface: #13141a;
+  --border: #1e2028;
+  --text: #e4e4e7;
+  --text-muted: #71717a;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.wallet-area {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.balance {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+}
+
+.main {
+  flex: 1;
+}
+
+.connect-prompt {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--text-muted);
+}
+
+.connect-prompt p {
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+}
+
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.intent-input label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input-row input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-row input:focus {
+  border-color: var(--accent);
+}
+
+.input-row button, .btn-confirm, .btn-cancel {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.input-row button {
+  background: var(--accent);
+  color: white;
+}
+
+.input-row button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.input-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.card h3 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.intent-fields .field {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.intent-fields .field:last-child { border-bottom: none; }
+.intent-fields .field span:first-child { color: var(--text-muted); }
+
+.policy-display.pass { border-color: var(--success); }
+.policy-display.reject { border-color: var(--danger); }
+.simulation-display.pass { border-color: var(--success); }
+.simulation-display.reject { border-color: var(--danger); }
+
+.policy-status { margin-bottom: 0.75rem; font-size: 0.95rem; }
+.pass .policy-status strong { color: var(--success); }
+.reject .policy-status strong { color: var(--danger); }
+
+.checks { display: flex; flex-direction: column; gap: 0.3rem; }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+}
+
+.check.passed span:first-child { color: var(--success); }
+.check.failed span:first-child { color: var(--danger); }
+.check .detail { color: var(--text-muted); margin-left: auto; }
+.check .reason { color: var(--danger); font-size: 0.8rem; }
+
+.sim-status { font-size: 0.95rem; color: var(--success); }
+.sim-status.fail { color: var(--danger); }
+
+.execution-summary { margin-bottom: 1rem; font-size: 0.9rem; }
+.execution-summary p { margin-bottom: 0.3rem; }
+.swap-detail { font-size: 1.1rem; margin: 0.5rem 0; }
+
+.execution-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-confirm {
+  background: var(--success);
+  color: white;
+  flex: 1;
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border) !important;
+  color: var(--text-muted);
+}
+
+.btn-cancel:hover:not(:disabled) {
+  border-color: var(--danger) !important;
+  color: var(--danger);
+}
+
+.error-box {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+
+.success-box {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid var(--success);
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.success-box h3 { color: var(--success); margin-bottom: 0.5rem; text-transform: none; letter-spacing: 0; font-size: 1.1rem; }
+.tx-hash { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; word-break: break-all; }
+
+.explorer-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.explorer-link:hover { text-decoration: underline; }
+
+.footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}

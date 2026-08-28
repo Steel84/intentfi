@@ -1,29 +1,118 @@
-import { SimulationResult, TransactionRequest } from '../types';
+import { SimulationResult, TransactionRequest, SwapIntent } from '../types';
+import { getHealthyClient } from '../utils/rpc';
+import { uniswapAdapter } from '../protocol/uniswap-v3';
+import { toBaseUnits, getTokenDecimals } from '../utils/tokens';
 
 /**
  * Simulation / Preflight Validation
  * 
- * Before requesting wallet approval:
+ * Performs strongest practical preflight before wallet approval:
  * 1. Validate transaction construction
  * 2. Verify sufficient balance
  * 3. Estimate gas
- * 4. Run RPC simulation where supported
+ * 4. Run RPC simulation (eth_call)
  * 5. Verify token allowances
- * 6. Verify policy constraints
  * 
- * A failed simulation BLOCKS execution.
+ * A FAILED simulation BLOCKS execution.
  */
 export async function simulateTransaction(
+  intent: SwapIntent,
   tx: TransactionRequest,
-  userAddress: string,
-  tokenAddress: string,
-  requiredAmount: bigint,
-  rpcUrl: string
+  userAddress: `0x${string}`
 ): Promise<SimulationResult> {
-  // TODO: Implement using viem
-  // 1. Check balance via eth_call
-  // 2. Check allowance via eth_call
-  // 3. eth_estimateGas
+  const client = await getHealthyClient();
+  const decimalsIn = getTokenDecimals(intent.tokenIn);
+  const requiredAmount = toBaseUnits(intent.amountIn, decimalsIn);
+
+  // 1. Check balance
+  let balanceCheck = false;
+  try {
+    const balance = await uniswapAdapter.getBalance(intent.tokenIn, userAddress);
+    balanceCheck = balance >= requiredAmount;
+    if (!balanceCheck) {
+      return {
+        success: false,
+        balanceCheck: false,
+        allowanceCheck: false,
+        error: `Insufficient ${intent.tokenIn} balance. Have: ${balance.toString()}, need: ${requiredAmount.toString()}`,
+      };
+    }
+  } catch (e: any) {
+    return {
+      success: false,
+      balanceCheck: false,
+      allowanceCheck: false,
+      error: `Failed to check balance: ${e.message}`,
+    };
+  }
+
+  // 2. Check allowance
+  let allowanceCheck = false;
+  try {
+    const allowance = await uniswapAdapter.getAllowance(intent.tokenIn, userAddress);
+    allowanceCheck = allowance >= requiredAmount;
+    if (!allowanceCheck) {
+      return {
+        success: false,
+        balanceCheck: true,
+        allowanceCheck: false,
+        error: `Token approval required. Current allowance insufficient for ${intent.amountIn} ${intent.tokenIn}`,
+        details: 'Approve the Uniswap router to spend your tokens first.',
+      };
+    }
+  } catch (e: any) {
+    return {
+      success: false,
+      balanceCheck: true,
+      allowanceCheck: false,
+      error: `Failed to check allowance: ${e.message}`,
+    };
+  }
+
+  // 3. Estimate gas via eth_estimateGas
+  let gasUsed: string | undefined;
+  try {
+    const gas = await client.estimateGas({
+      account: userAddress,
+      to: tx.to as `0x${string}`,
+      data: tx.data as `0x${string}`,
+      value: BigInt(tx.value || '0'),
+    });
+    gasUsed = gas.toString();
+  } catch (e: any) {
+    return {
+      success: false,
+      balanceCheck: true,
+      allowanceCheck: true,
+      error: `Gas estimation failed: ${e.message}`,
+      details: 'Transaction would likely revert on-chain.',
+    };
+  }
+
   // 4. eth_call simulation
-  throw new Error('Not implemented yet - Day 4 deliverable');
+  try {
+    await client.call({
+      account: userAddress,
+      to: tx.to as `0x${string}`,
+      data: tx.data as `0x${string}`,
+      value: BigInt(tx.value || '0'),
+    });
+  } catch (e: any) {
+    return {
+      success: false,
+      balanceCheck: true,
+      allowanceCheck: true,
+      gasUsed,
+      error: `Simulation reverted: ${e.message}`,
+      details: 'The transaction would fail on-chain.',
+    };
+  }
+
+  return {
+    success: true,
+    gasUsed,
+    balanceCheck: true,
+    allowanceCheck: true,
+    details: 'All preflight checks passed.',
+  };
 }
