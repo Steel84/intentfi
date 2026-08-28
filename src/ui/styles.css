@@ -613,3 +613,8 @@ body {
 .settings-panel label { display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-size: 0.82rem; gap: 1rem; }
 .settings-panel input { width: 90px; padding: 0.45rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 5px; }
 .btn-save-settings { justify-self: start; padding: 0.45rem 0.8rem; border: none; border-radius: 5px; background: var(--accent); color: white; cursor: pointer; font-weight: 600; }
+
+.flow-progress { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.15rem; }
+.progress-step { color: var(--text-muted); font-size: 0.72rem; padding: 0.25rem 0.45rem; border: 1px solid var(--border); border-radius: 999px; }
+.progress-step.active { color: var(--success); border-color: rgba(34, 197, 94, 0.45); }
+.progress-step.current { color: var(--accent-hover); border-color: var(--accent); }

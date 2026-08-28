@@ -10,6 +10,7 @@ import { ExecutionPanel } from './ExecutionPanel';
 import { TxHistory } from './TxHistory';
 import { RpcStatus } from './RpcStatus';
 import { PolicySettings } from './PolicySettings';
+import { FlowProgress } from './FlowProgress';
 import { useSwapFlow } from './useSwapFlow';
 import { CHAIN_CONFIG } from '../config';
 
@@ -65,6 +66,7 @@ export default function App() {
           </div>
         ) : (
           <div className="flow">
+            <FlowProgress state={flow.state} />
             <PolicySettings config={flow.policyConfig} onSave={flow.updatePolicyConfig} />
             <IntentInput
               onIntentParsed={(intent) => { setInputError(null); flow.runFlow(intent); }}
