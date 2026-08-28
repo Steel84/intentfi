@@ -65,7 +65,9 @@ User Input (NL or Form)
 - **Failed simulation blocks execution** -- transaction cannot be sent if preflight fails
 - **No private keys stored** -- uses browser wallet via wagmi/ConnectKit
 - **Integer arithmetic** -- all token amounts use BigInt, no floating point for financial math
-- **Fallback at every layer** -- regex parser if no OpenAI key, fallback RPC if primary fails
+- **Fallback at every layer** -- deterministic parser in the static client, fallback RPC if primary fails
+- **Fail closed** -- unsupported tokens, unknown price impact, reverted receipts, stale quotes, and failed final preflight block execution
+- **No blind approval** -- the app approves only the exact input amount required for the current swap
 
 ## Tech Stack
 
@@ -74,8 +76,8 @@ User Input (NL or Form)
 - **Chain:** Ethereum Sepolia testnet
 - **DEX:** Uniswap V3 (QuoterV2 + SwapRouter)
 - **RPC:** Configurable primary + fallback with health check
-- **Tests:** Vitest (44 tests)
-- **NL Parser:** OpenAI gpt-4o-mini (optional) + regex fallback
+- **Tests:** Vitest (58 tests)
+- **NL Parser:** validated deterministic fallback parser in the static client; optional LLM integration belongs behind a server-side proxy
 
 ## Quick Start
 
@@ -103,7 +105,6 @@ npm test
 |----------|----------|-------------|
 | `VITE_RPC_PRIMARY` | No | Primary Sepolia RPC (default: public) |
 | `VITE_RPC_FALLBACK` | No | Fallback RPC (default: publicnode) |
-| `VITE_OPENAI_API_KEY` | No | For NL parsing (form fallback works without) |
 | `VITE_WALLETCONNECT_PROJECT_ID` | No | WalletConnect v2 project ID |
 
 ## Testing
@@ -141,6 +142,8 @@ Test coverage:
 5. Confirm transaction
 6. View on Etherscan
 
+The app also persists a small, wallet-scoped transaction history and local safety policy. History is capped at 10 entries and no private key or seed phrase is stored.
+
 ## Security Model
 
 - No private key storage
@@ -155,3 +158,16 @@ Test coverage:
 ## License
 
 MIT
+
+## Final acceptance checklist
+
+Run the automated checks before the manual demo:
+
+```bash
+npm run typecheck
+npm run lint
+npm run test:run
+npm run build
+```
+
+The remaining acceptance step is intentionally manual: connect a pre-funded browser wallet on Sepolia, complete one real swap, and record the 2-4 minute demo without presenting mock success as a real transaction. The automated `tests/flow/mock-flow.test.ts` covers the complete proposal pipeline through calldata, simulation, and deterministic policy without signing.
