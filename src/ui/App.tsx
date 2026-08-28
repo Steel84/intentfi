@@ -7,6 +7,7 @@ import { PolicyDisplay } from './PolicyDisplay';
 import { SimulationDisplay } from './SimulationDisplay';
 import { ExecutionPanel } from './ExecutionPanel';
 import { TxHistory } from './TxHistory';
+import { RpcStatus } from './RpcStatus';
 import { useSwapFlow } from './useSwapFlow';
 import { CHAIN_CONFIG } from '../config';
 
@@ -101,6 +102,11 @@ export default function App() {
                     {flow.approving ? 'Approving...' : `Approve ${flow.intent?.tokenIn}`}
                   </button>
                 )}
+                {flow.state === 'error' && !flow.needsApproval && (
+                  <button className="btn-retry" onClick={flow.reset}>
+                    Try Again
+                  </button>
+                )}
               </div>
             )}
 
@@ -151,6 +157,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
+        <RpcStatus />
         <span>Sepolia Testnet \u2022 Not real funds</span>
         <span>v0.1</span>
       </footer>
