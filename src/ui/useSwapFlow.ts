@@ -1,10 +1,18 @@
 import { useState, useCallback } from 'react';
-import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
-import { SwapIntent, Quote, PolicyResult, SimulationResult } from '../types';
+import { useAccount, useWalletClient, usePublicClient, useSwitchChain } from 'wagmi';
+import { SwapIntent, Quote, PolicyResult, SimulationResult, TransactionRequest } from '../types';
 import { uniswapAdapter } from '../protocol/uniswap-v3';
 import { evaluatePolicy } from '../policy/engine';
 import { simulateTransaction } from '../simulation/preflight';
+import { CHAIN_CONFIG } from '../config';
 import { AppState } from './App';
+
+export type TxHistoryEntry = {
+  hash: string;
+  intent: SwapIntent;
+  quote: Quote;
+  timestamp: number;
+};
 
 export type FlowState = {
   state: AppState;
@@ -14,12 +22,16 @@ export type FlowState = {
   simulation: SimulationResult | null;
   txHash: string | null;
   error: string | null;
+  needsApproval: boolean;
+  approving: boolean;
+  txHistory: TxHistoryEntry[];
 };
 
 export function useSwapFlow() {
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
+  const { switchChain } = useSwitchChain();
 
   const [flowState, setFlowState] = useState<FlowState>({
     state: 'idle',
@@ -29,10 +41,16 @@ export function useSwapFlow() {
     simulation: null,
     txHash: null,
     error: null,
+    needsApproval: false,
+    approving: false,
+    txHistory: [],
   });
 
+  const isWrongChain = chainId !== undefined && chainId !== CHAIN_CONFIG.chainId;
+
   const reset = useCallback(() => {
-    setFlowState({
+    setFlowState(prev => ({
+      ...prev,
       state: 'idle',
       intent: null,
       quote: null,
@@ -40,8 +58,18 @@ export function useSwapFlow() {
       simulation: null,
       txHash: null,
       error: null,
-    });
+      needsApproval: false,
+      approving: false,
+    }));
   }, []);
+
+  const switchToSepolia = useCallback(async () => {
+    try {
+      switchChain({ chainId: CHAIN_CONFIG.chainId });
+    } catch (e: any) {
+      setFlowState(prev => ({ ...prev, error: `Failed to switch network: ${e.message}` }));
+    }
+  }, [switchChain]);
 
   /**
    * Execute the full flow after intent is parsed:
@@ -53,7 +81,12 @@ export function useSwapFlow() {
       return;
     }
 
-    setFlowState(prev => ({ ...prev, intent, state: 'quoting', error: null }));
+    if (isWrongChain) {
+      setFlowState(prev => ({ ...prev, state: 'error', error: `Wrong network. Please switch to ${CHAIN_CONFIG.name}.` }));
+      return;
+    }
+
+    setFlowState(prev => ({ ...prev, intent, state: 'quoting', error: null, needsApproval: false }));
 
     // 1. Get live quote
     let quote: Quote;
@@ -75,7 +108,7 @@ export function useSwapFlow() {
     }
 
     // 2. Build transaction
-    let tx;
+    let tx: TransactionRequest;
     try {
       const deadline = Math.floor(Date.now() / 1000) + 1200; // 20 min
       tx = await uniswapAdapter.buildTransaction({
@@ -112,6 +145,18 @@ export function useSwapFlow() {
       setFlowState(prev => ({ ...prev, simulation }));
     }
 
+    // Check if approval is needed (allowance failed but balance is ok)
+    if (!simulation.allowanceCheck && simulation.balanceCheck) {
+      setFlowState(prev => ({
+        ...prev,
+        needsApproval: true,
+        simulation,
+        state: 'error',
+        error: `Token approval required. Approve ${intent.tokenIn} spending before swapping.`,
+      }));
+      return;
+    }
+
     // 4. Policy check
     const policyResult = evaluatePolicy(intent, quote, simulation);
     setFlowState(prev => ({ ...prev, policyResult, state: 'policy-done' }));
@@ -127,7 +172,45 @@ export function useSwapFlow() {
 
     // All checks passed - ready for user approval
     setFlowState(prev => ({ ...prev, state: 'ready' }));
-  }, [address]);
+  }, [address, isWrongChain]);
+
+  /**
+   * Approve ERC20 token spending for the router
+   */
+  const approveToken = useCallback(async () => {
+    if (!walletClient || !address || !flowState.intent) return;
+
+    setFlowState(prev => ({ ...prev, approving: true, error: null }));
+
+    try {
+      const intent = flowState.intent;
+      const amount = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'); // max approval
+      const approvalTx = uniswapAdapter.buildApprovalTx(intent.tokenIn, amount);
+
+      const hash = await walletClient.sendTransaction({
+        to: approvalTx.to as `0x${string}`,
+        data: approvalTx.data as `0x${string}`,
+        value: 0n,
+        chain: undefined,
+        account: address as `0x${string}`,
+      });
+
+      // Wait for confirmation
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash });
+      }
+
+      setFlowState(prev => ({ ...prev, approving: false, needsApproval: false, error: null }));
+
+      // Re-run the flow now that approval is done
+      await runFlow(intent);
+    } catch (e: any) {
+      const msg = e.message?.includes('rejected') || e.message?.includes('denied')
+        ? 'Approval rejected by user'
+        : `Approval failed: ${e.message}`;
+      setFlowState(prev => ({ ...prev, approving: false, error: msg }));
+    }
+  }, [walletClient, address, flowState.intent, publicClient, runFlow]);
 
   /**
    * Execute the transaction after user approval
@@ -135,6 +218,16 @@ export function useSwapFlow() {
   const executeTransaction = useCallback(async () => {
     if (!walletClient || !address || !flowState.intent) {
       setFlowState(prev => ({ ...prev, state: 'error', error: 'Missing wallet or intent' }));
+      return;
+    }
+
+    // Check quote expiry
+    if (flowState.quote && Date.now() > flowState.quote.expiresAt) {
+      setFlowState(prev => ({
+        ...prev,
+        state: 'error',
+        error: 'Quote expired. Please try again.',
+      }));
       return;
     }
 
@@ -169,19 +262,42 @@ export function useSwapFlow() {
         await publicClient.waitForTransactionReceipt({ hash });
       }
 
-      setFlowState(prev => ({ ...prev, txHash: hash, state: 'confirmed' }));
+      // Add to history
+      const entry: TxHistoryEntry = {
+        hash,
+        intent,
+        quote,
+        timestamp: Date.now(),
+      };
+
+      setFlowState(prev => ({
+        ...prev,
+        txHash: hash,
+        state: 'confirmed',
+        txHistory: [entry, ...prev.txHistory],
+      }));
     } catch (e: any) {
-      const msg = e.message?.includes('rejected') || e.message?.includes('denied')
-        ? 'Transaction rejected by user'
-        : `Execution failed: ${e.message}`;
+      let msg: string;
+      if (e.message?.includes('rejected') || e.message?.includes('denied')) {
+        msg = 'Transaction rejected by user';
+      } else if (e.message?.includes('insufficient funds')) {
+        msg = 'Insufficient funds for gas';
+      } else if (e.message?.includes('nonce')) {
+        msg = 'Transaction nonce error. Please try again.';
+      } else {
+        msg = `Execution failed: ${e.message?.slice(0, 200)}`;
+      }
       setFlowState(prev => ({ ...prev, state: 'error', error: msg }));
     }
   }, [walletClient, address, flowState.intent, flowState.quote, publicClient]);
 
   return {
     ...flowState,
+    isWrongChain,
     runFlow,
     executeTransaction,
+    approveToken,
+    switchToSepolia,
     reset,
   };
 }

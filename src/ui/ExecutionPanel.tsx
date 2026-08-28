@@ -4,20 +4,16 @@ import { SwapIntent, Quote } from '../types';
 type Props = {
   intent: SwapIntent;
   quote: Quote;
-  onExecuting: () => void;
-  onConfirmed: (hash: string) => void;
-  onError: (error: string) => void;
-  onConfirmClick?: () => void;
+  onConfirmClick: () => void;
+  onCancelClick: () => void;
 };
 
-export function ExecutionPanel({ intent, quote, onConfirmClick }: Props) {
+export function ExecutionPanel({ intent, quote, onConfirmClick, onCancelClick }: Props) {
   const [confirming, setConfirming] = useState(false);
 
   const handleConfirm = async () => {
     setConfirming(true);
-    if (onConfirmClick) {
-      await onConfirmClick();
-    }
+    await onConfirmClick();
     setConfirming(false);
   };
 
@@ -43,7 +39,11 @@ export function ExecutionPanel({ intent, quote, onConfirmClick }: Props) {
         >
           {confirming ? 'Sending...' : 'Confirm Transaction'}
         </button>
-        <button className="btn-cancel" disabled={confirming}>
+        <button
+          className="btn-cancel"
+          onClick={onCancelClick}
+          disabled={confirming}
+        >
           Cancel
         </button>
       </div>

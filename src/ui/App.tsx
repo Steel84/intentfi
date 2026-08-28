@@ -1,4 +1,3 @@
-
 import { useAccount, useBalance } from 'wagmi';
 import { ConnectKitButton } from 'connectkit';
 import { IntentInput } from './IntentInput';
@@ -7,7 +6,9 @@ import { QuoteDisplay } from './QuoteDisplay';
 import { PolicyDisplay } from './PolicyDisplay';
 import { SimulationDisplay } from './SimulationDisplay';
 import { ExecutionPanel } from './ExecutionPanel';
+import { TxHistory } from './TxHistory';
 import { useSwapFlow } from './useSwapFlow';
+import { CHAIN_CONFIG } from '../config';
 
 export type AppState = 
   | 'idle'
@@ -48,30 +49,58 @@ export default function App() {
             <p>Connect your wallet to get started</p>
             <ConnectKitButton />
           </div>
+        ) : flow.isWrongChain ? (
+          <div className="wrong-chain">
+            <div className="card">
+              <h3>Wrong Network</h3>
+              <p>Please switch to <strong>{CHAIN_CONFIG.name}</strong> to use IntentFi.</p>
+              <button className="btn-switch" onClick={flow.switchToSepolia}>
+                Switch to {CHAIN_CONFIG.name}
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="flow">
             <IntentInput
               onIntentParsed={(intent) => flow.runFlow(intent)}
               onError={() => {}}
               onStateChange={() => {}}
-              disabled={flow.state === 'executing'}
+              disabled={flow.state === 'executing' || flow.approving}
             />
 
-            {flow.state === 'parsing' && (
-              <div className="card"><p>Understanding intent...</p></div>
-            )}
-
             {flow.state === 'quoting' && (
-              <div className="card"><p>Fetching live quote...</p></div>
+              <div className="card loading-card">
+                <div className="spinner" />
+                <p>Fetching live quote from Uniswap V3...</p>
+              </div>
             )}
 
             {flow.state === 'simulating' && (
-              <div className="card"><p>Simulating transaction...</p></div>
+              <div className="card loading-card">
+                <div className="spinner" />
+                <p>Simulating transaction on-chain...</p>
+              </div>
+            )}
+
+            {flow.state === 'checking-policy' && (
+              <div className="card loading-card">
+                <div className="spinner" />
+                <p>Running policy checks...</p>
+              </div>
             )}
 
             {flow.error && (
               <div className="error-box">
                 <strong>Error:</strong> {flow.error}
+                {flow.needsApproval && (
+                  <button
+                    className="btn-approve"
+                    onClick={flow.approveToken}
+                    disabled={flow.approving}
+                  >
+                    {flow.approving ? 'Approving...' : `Approve ${flow.intent?.tokenIn}`}
+                  </button>
+                )}
               </div>
             )}
 
@@ -84,15 +113,14 @@ export default function App() {
               <ExecutionPanel
                 intent={flow.intent}
                 quote={flow.quote}
-                onExecuting={() => {}}
-                onConfirmed={() => {}}
-                onError={() => {}}
                 onConfirmClick={flow.executeTransaction}
+                onCancelClick={flow.reset}
               />
             )}
 
             {flow.state === 'executing' && (
-              <div className="card">
+              <div className="card loading-card">
+                <div className="spinner" />
                 <p>Waiting for wallet signature and confirmation...</p>
               </div>
             )}
@@ -102,14 +130,21 @@ export default function App() {
                 <h3>Transaction Confirmed \u2713</h3>
                 <p className="tx-hash">{flow.txHash}</p>
                 <a
-                  href={`https://sepolia.etherscan.io/tx/${flow.txHash}`}
+                  href={`${CHAIN_CONFIG.explorer}/tx/${flow.txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="explorer-link"
                 >
                   View on Explorer \u2192
                 </a>
+                <button className="btn-new-swap" onClick={flow.reset}>
+                  New Swap
+                </button>
               </div>
+            )}
+
+            {flow.txHistory.length > 0 && flow.state !== 'confirmed' && (
+              <TxHistory entries={flow.txHistory} />
             )}
           </div>
         )}

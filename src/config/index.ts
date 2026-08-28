@@ -10,17 +10,30 @@ export const CHAIN_CONFIG = {
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
 } as const;
 
-// Token registry (Sepolia addresses — to be confirmed with actual deployment)
+// Uniswap V3 Sepolia deployments (verified)
+// https://docs.uniswap.org/contracts/v3/reference/deployments/sepolia-deployments
+export const UNISWAP_V3_ADDRESSES = {
+  swapRouter: '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E',
+  quoterV2: '0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3',
+  factory: '0x0227628f3F023bb0B980b67D528571c95c6DaC1c',
+} as const;
+
+// Token registry (Sepolia verified addresses)
 export const TOKENS: Record<string, { address: string; decimals: number; symbol: string }> = {
   USDC: {
-    address: '', // fill after verifying Sepolia USDC
+    address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
     decimals: 6,
     symbol: 'USDC',
   },
   WETH: {
-    address: '', // fill after verifying Sepolia WETH
+    address: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
     decimals: 18,
     symbol: 'WETH',
+  },
+  ETH: {
+    address: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
+    decimals: 18,
+    symbol: 'ETH',
   },
 };
 
@@ -36,6 +49,6 @@ export const DEFAULT_POLICY: PolicyConfig = {
 // Protocol config
 export const PROTOCOL_CONFIG = {
   name: 'uniswap-v3',
-  router: '', // Uniswap V3 SwapRouter on Sepolia
-  quoter: '', // Uniswap V3 Quoter on Sepolia
+  router: UNISWAP_V3_ADDRESSES.swapRouter,
+  quoter: UNISWAP_V3_ADDRESSES.quoterV2,
 } as const;
