@@ -17,6 +17,29 @@ export function evaluatePolicy(
   config: PolicyConfig = DEFAULT_POLICY
 ): PolicyResult {
   const checks: PolicyCheck[] = [];
+  const protocol = 'uniswap-v3';
+
+  checks.push({
+    name: 'Chain Allowed',
+    passed: intent.chainId === 11155111,
+    actual: String(intent.chainId),
+    limit: '11155111 (Sepolia)',
+    reason: intent.chainId !== 11155111 ? 'Only Sepolia is enabled' : undefined,
+  });
+
+  checks.push({
+    name: 'Protocol Allowed',
+    passed: config.allowedProtocols.includes(protocol),
+    actual: protocol,
+    limit: config.allowedProtocols.join(', '),
+  });
+
+  checks.push({
+    name: 'Quote Fresh',
+    passed: quote.expiresAt > Date.now(),
+    actual: new Date(quote.expiresAt).toISOString(),
+    reason: quote.expiresAt <= Date.now() ? 'Quote expired; request a fresh quote' : undefined,
+  });
 
   // 1. Token allowlist
   checks.push({

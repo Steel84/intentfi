@@ -19,8 +19,8 @@ describe('Token Utilities', () => {
       expect(toBaseUnits('0.001', 18)).toBe(1000000000000000n);
     });
 
-    it('should handle extra decimal places by truncating', () => {
-      expect(toBaseUnits('100.1234567', 6)).toBe(100123456n);
+    it('should reject non-zero extra decimal places', () => {
+      expect(() => toBaseUnits('100.1234567', 6)).toThrow('more than 6 decimal places');
     });
 
     it('should handle no decimal part', () => {

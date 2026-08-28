@@ -1,17 +1,22 @@
-
 import { PolicyResult } from '../types';
 
 export function PolicyDisplay({ result }: { result: PolicyResult }) {
+  const passed = result.status === 'PASS';
   return (
-    <div className={`card policy-display ${result.status === 'PASS' ? 'pass' : 'reject'}`}>
-      <h3>Policy Check</h3>
+    <div className={`card policy-display ${passed ? 'pass' : 'reject'}`}>
+      <h3>Deterministic Policy</h3>
       <div className="policy-status">
-        Status: <strong>{result.status === 'PASS' ? '\u2713 APPROVED' : '\u2717 REJECTED'}</strong>
+        Status: <strong>{passed ? '✓ APPROVED FOR REVIEW' : '✗ REJECTED'}</strong>
       </div>
+      <p className="policy-explanation">
+        {passed
+          ? 'Every configured safety check passed. You still control the final wallet approval.'
+          : 'Execution is blocked because one or more safety checks failed.'}
+      </p>
       <div className="checks">
         {result.checks.map((check, i) => (
-          <div key={i} className={`check ${check.passed ? 'passed' : 'failed'}`}>
-            <span>{check.passed ? '\u2713' : '\u2717'}</span>
+          <div key={`${check.name}-${i}`} className={`check ${check.passed ? 'passed' : 'failed'}`}>
+            <span>{check.passed ? '✓' : '✗'}</span>
             <span>{check.name}</span>
             {check.actual && <span className="detail">{check.actual}</span>}
             {!check.passed && check.reason && <span className="reason">{check.reason}</span>}

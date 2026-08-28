@@ -1,12 +1,5 @@
 import { TOKENS } from '../config';
 
-/**
- * Token Utilities
- * 
- * Resolve symbols to addresses, handle decimals.
- * Never trust token symbols alone for execution.
- */
-
 export function resolveTokenAddress(symbol: string): string | null {
   const token = TOKENS[symbol.toUpperCase()];
   return token?.address || null;
@@ -17,22 +10,28 @@ export function getTokenDecimals(symbol: string): number {
   return token?.decimals ?? 18;
 }
 
-/**
- * Convert human-readable amount to base units (integer)
- * Uses integer arithmetic to avoid floating-point issues
- */
+/** Convert a strict non-negative decimal string to base units without floating point. */
 export function toBaseUnits(amount: string, decimals: number): bigint {
-  const [whole, fraction = ''] = amount.split('.');
+  if (!Number.isInteger(decimals) || decimals < 0) throw new Error('Invalid token decimals');
+  const normalized = amount.trim();
+  if (!/^\d+(\.\d+)?$/.test(normalized)) throw new Error('Amount must be a positive decimal number');
+  const [whole, fraction = ''] = normalized.split('.');
+  if (fraction.length > decimals && /[1-9]/.test(fraction.slice(decimals))) {
+    throw new Error(`Amount has more than ${decimals} decimal places`);
+  }
   const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
-  return BigInt(whole + paddedFraction);
+  const value = BigInt(whole) * (10n ** BigInt(decimals)) + BigInt(paddedFraction || '0');
+  if (value <= 0n) throw new Error('Amount must be greater than zero');
+  return value;
 }
 
-/**
- * Convert base units back to human-readable
- */
 export function fromBaseUnits(amount: bigint, decimals: number): string {
-  const str = amount.toString().padStart(decimals + 1, '0');
-  const whole = str.slice(0, -decimals) || '0';
-  const fraction = str.slice(-decimals).replace(/0+$/, '');
-  return fraction ? `${whole}.${fraction}` : whole;
+  if (!Number.isInteger(decimals) || decimals < 0) throw new Error('Invalid token decimals');
+  if (amount < 0n) throw new Error('Amount cannot be negative');
+  if (decimals === 0) return amount.toString();
+  const base = 10n ** BigInt(decimals);
+  const whole = amount / base;
+  const fraction = amount % base;
+  if (fraction === 0n) return whole.toString();
+  return `${whole}.${fraction.toString().padStart(decimals, '0').replace(/0+$/, '')}`;
 }

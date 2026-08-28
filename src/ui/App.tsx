@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { ConnectKitButton } from 'connectkit';
 import { IntentInput } from './IntentInput';
@@ -29,6 +30,7 @@ export default function App() {
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
   const flow = useSwapFlow();
+  const [inputError, setInputError] = useState<string | null>(null);
 
   return (
     <div className="app">
@@ -63,8 +65,8 @@ export default function App() {
         ) : (
           <div className="flow">
             <IntentInput
-              onIntentParsed={(intent) => flow.runFlow(intent)}
-              onError={() => {}}
+              onIntentParsed={(intent) => { setInputError(null); flow.runFlow(intent); }}
+              onError={(error) => setInputError(error)}
               onStateChange={() => {}}
               disabled={flow.state === 'executing' || flow.approving}
             />
@@ -90,9 +92,9 @@ export default function App() {
               </div>
             )}
 
-            {flow.error && (
+            {(inputError || flow.error) && (
               <div className="error-box">
-                <strong>Error:</strong> {flow.error}
+                <strong>Error:</strong> {inputError || flow.error}
                 {flow.needsApproval && (
                   <button
                     className="btn-approve"

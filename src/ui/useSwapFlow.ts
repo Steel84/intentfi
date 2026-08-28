@@ -96,6 +96,7 @@ export function useSwapFlow() {
         tokenOut: intent.tokenOut,
         amountIn: intent.amountIn,
         chainId: intent.chainId,
+        slippageBps: intent.maxSlippageBps,
       });
       setFlowState(prev => ({ ...prev, quote, state: 'checking-policy' }));
     } catch (e: any) {

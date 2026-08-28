@@ -20,7 +20,7 @@ const QUOTER_ABI = parseAbi([
 ]);
 
 const SWAP_ROUTER_ABI = parseAbi([
-  'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)',
+  'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)',
 ]);
 
 const ERC20_ABI = parseAbi([
@@ -73,7 +73,9 @@ export class UniswapV3Adapter implements SwapProtocol {
 
     const expectedOutput = fromBaseUnits(amountOut, decimalsOut);
     // Calculate minimum output with slippage (default 0.5%)
-    const minOut = amountOut * 995n / 1000n;
+    const slippageBps = params.slippageBps ?? 50;
+    if (!Number.isInteger(slippageBps) || slippageBps < 0 || slippageBps > 10000) throw new Error('Invalid slippage');
+    const minOut = amountOut * BigInt(10000 - slippageBps) / 10000n;
     const minimumOutput = fromBaseUnits(minOut, decimalsOut);
 
     // Price = amountOut / amountIn (normalized)
@@ -88,7 +90,7 @@ export class UniswapV3Adapter implements SwapProtocol {
       minimumOutput: `${minimumOutput} ${params.tokenOut}`,
       price: price.toFixed(8),
       priceImpactBps,
-      slippageBps: 50,
+      slippageBps,
       gasEstimate: gasEstimate.toString(),
       route: `${params.tokenIn} -> ${params.tokenOut} (0.3% fee)`,
       expiresAt: Date.now() + 30000, // 30s validity
@@ -111,6 +113,7 @@ export class UniswapV3Adapter implements SwapProtocol {
         tokenOut: tokenOutAddress,
         fee: FEE_TIER,
         recipient: params.recipient as `0x${string}`,
+        deadline: BigInt(params.deadline),
         amountIn: amountInWei,
         amountOutMinimum: minAmountOutWei,
         sqrtPriceLimitX96: 0n,

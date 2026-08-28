@@ -8,6 +8,7 @@ export type QuoteParams = {
   tokenOut: string;
   amountIn: string;
   chainId: number;
+  slippageBps?: number;
 };
 
 export type Quote = {

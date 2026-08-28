@@ -1,109 +1,35 @@
 import { SwapIntent, ParsedIntentResult } from '../types';
 import { CHAIN_CONFIG } from '../config';
 
-/**
- * Intent Parser
- * 
- * LLM's job: translate natural language -> structured SwapIntent
- * Application's job: validate the output against schema
- * 
- * Invalid output is rejected. LLM never generates calldata directly.
- */
-
 const SYSTEM_PROMPT = `You are an intent parser for a DeFi swap application.
-Your ONLY job is to extract structured swap parameters from user input.
-Return ONLY valid JSON matching the SwapIntent schema.
-Do NOT add commentary. Do NOT suggest transactions.
-Do NOT generate calldata or addresses.
-
-Schema:
-{
-  "action": "swap",
-  "tokenIn": "<TOKEN_SYMBOL>",
-  "tokenOut": "<TOKEN_SYMBOL>",
-  "amountIn": "<AMOUNT_AS_STRING>",
-  "maxSlippageBps": <NUMBER>
-}
-
-Rules:
-- Convert percentage slippage to basis points (0.5% = 50 bps)
-- Use uppercase token symbols
-- amountIn must be a decimal string
-- If information is missing, return {"error": "<what is missing>"}
-`;
+Return ONLY JSON matching: {"action":"swap","tokenIn":"SYMBOL","tokenOut":"SYMBOL","amountIn":"DECIMAL","maxSlippageBps":NUMBER}.
+Do not generate calldata, addresses, or transaction suggestions. Convert percentage slippage to basis points.`;
 
 export async function parseIntent(userInput: string, apiKey: string): Promise<ParsedIntentResult> {
+  if (!userInput.trim()) return { success: false, error: 'Intent cannot be empty' };
+  if (!apiKey.trim()) return { success: false, error: 'Parser API key is not configured' };
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userInput },
-        ],
-        temperature: 0,
-        response_format: { type: 'json_object' },
-      }),
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userInput }], temperature: 0, response_format: { type: 'json_object' } }),
     });
-
-    if (!response.ok) {
-      return { success: false, error: `LLM API error: ${response.status}` };
-    }
-
+    if (!response.ok) return { success: false, error: response.status === 429 ? 'Parser is rate-limited. Use Form mode instead.' : `Parser API error (${response.status})` };
     const data = await response.json();
-    const raw = JSON.parse(data.choices[0].message.content);
-
-    // Validate against schema
-    return validateSwapIntent(raw);
-  } catch (e: any) {
-    return { success: false, error: `Parse failed: ${e.message}` };
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== 'string') return { success: false, error: 'Parser returned an invalid response' };
+    return validateSwapIntent(JSON.parse(content));
+  } catch (e: unknown) {
+    return { success: false, error: `Parse failed: ${e instanceof Error ? e.message : 'unknown error'}` };
   }
 }
 
-/**
- * Validate LLM output against SwapIntent schema
- * Rejects anything that doesn't conform
- */
 export function validateSwapIntent(raw: any): ParsedIntentResult {
-  if (raw.error) {
-    return { success: false, error: raw.error };
-  }
-
-  if (raw.action !== 'swap') {
-    return { success: false, error: `Unsupported action: ${raw.action}` };
-  }
-
-  if (!raw.tokenIn || typeof raw.tokenIn !== 'string') {
-    return { success: false, error: 'Missing or invalid tokenIn' };
-  }
-
-  if (!raw.tokenOut || typeof raw.tokenOut !== 'string') {
-    return { success: false, error: 'Missing or invalid tokenOut' };
-  }
-
-  if (!raw.amountIn || isNaN(Number(raw.amountIn)) || Number(raw.amountIn) <= 0) {
-    return { success: false, error: 'Missing or invalid amountIn' };
-  }
-
-  if (typeof raw.maxSlippageBps !== 'number' || raw.maxSlippageBps < 0 || raw.maxSlippageBps > 10000) {
-    return { success: false, error: 'Missing or invalid maxSlippageBps (must be 0-10000)' };
-  }
-
-  const intent: SwapIntent = {
-    action: 'swap',
-    chainId: CHAIN_CONFIG.chainId,
-    tokenIn: raw.tokenIn.toUpperCase(),
-    tokenOut: raw.tokenOut.toUpperCase(),
-    amountIn: raw.amountIn,
-    maxSlippageBps: raw.maxSlippageBps,
-    maxPriceImpactBps: raw.maxPriceImpactBps,
-    maxGasWei: raw.maxGasWei,
-  };
-
-  return { success: true, intent };
+  if (!raw || typeof raw !== 'object') return { success: false, error: 'Intent must be an object' };
+  if (raw.error) return { success: false, error: String(raw.error) };
+  if (raw.action !== 'swap') return { success: false, error: `Unsupported action: ${String(raw.action)}` };
+  if (typeof raw.tokenIn !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_-]{1,15}$/.test(raw.tokenIn.trim())) return { success: false, error: 'Missing or invalid tokenIn' };
+  if (typeof raw.tokenOut !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_-]{1,15}$/.test(raw.tokenOut.trim())) return { success: false, error: 'Missing or invalid tokenOut' };
+  if (typeof raw.amountIn !== 'string' || !/^\d+(\.\d+)?$/.test(raw.amountIn.trim()) || /^0+(\.0+)?$/.test(raw.amountIn.trim())) return { success: false, error: 'Missing or invalid amountIn' };
+  if (typeof raw.maxSlippageBps !== 'number' || !Number.isInteger(raw.maxSlippageBps) || raw.maxSlippageBps < 0 || raw.maxSlippageBps > 10000) return { success: false, error: 'maxSlippageBps must be an integer from 0 to 10000' };
+  return { success: true, intent: { action: 'swap', chainId: CHAIN_CONFIG.chainId, tokenIn: raw.tokenIn.trim().toUpperCase(), tokenOut: raw.tokenOut.trim().toUpperCase(), amountIn: raw.amountIn.trim(), maxSlippageBps: raw.maxSlippageBps } };
 }
