@@ -3,7 +3,7 @@ import { DEFAULT_POLICY } from '../config';
 
 /**
  * Deterministic Policy Engine
- * 
+ *
  * Rules:
  * - No LLM calls
  * - No probabilistic decisions

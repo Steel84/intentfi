@@ -9,7 +9,10 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "npm run typecheck && node scripts/lint.mjs",
+    "format:check": "node scripts/lint.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",

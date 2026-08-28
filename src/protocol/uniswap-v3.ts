@@ -34,7 +34,7 @@ const FEE_TIER = 3000;
 
 /**
  * Uniswap V3 Protocol Adapter (Sepolia)
- * 
+ *
  * Implements SwapProtocol interface.
  * Uses live on-chain data via QuoterV2 contract.
  */
@@ -144,7 +144,7 @@ export class UniswapV3Adapter implements SwapProtocol {
   async getBalance(token: string, userAddress: `0x${string}`): Promise<bigint> {
     const client = await getHealthyClient();
     const tokenAddress = this.resolveAddress(token);
-    
+
     const balance = await client.readContract({
       address: tokenAddress,
       abi: ERC20_ABI,

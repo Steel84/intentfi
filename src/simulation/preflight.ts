@@ -5,14 +5,14 @@ import { toBaseUnits, getTokenDecimals } from '../utils/tokens';
 
 /**
  * Simulation / Preflight Validation
- * 
+ *
  * Performs strongest practical preflight before wallet approval:
  * 1. Validate transaction construction
  * 2. Verify sufficient balance
  * 3. Estimate gas
  * 4. Run RPC simulation (eth_call)
  * 5. Verify token allowances
- * 
+ *
  * A FAILED simulation BLOCKS execution.
  */
 export async function simulateTransaction(

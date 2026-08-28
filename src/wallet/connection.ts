@@ -1,6 +1,6 @@
 /**
  * Wallet Connection Module
- * 
+ *
  * Standard browser wallet flow:
  * - connect
  * - detect chain
@@ -8,7 +8,7 @@
  * - request network switch
  * - request tx signature
  * - handle rejection/errors
- * 
+ *
  * NO private key storage. NO custodial wallets.
  */
 

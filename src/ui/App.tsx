@@ -13,7 +13,7 @@ import { PolicySettings } from './PolicySettings';
 import { useSwapFlow } from './useSwapFlow';
 import { CHAIN_CONFIG } from '../config';
 
-export type AppState = 
+export type AppState =
   | 'idle'
   | 'parsing'
   | 'parsed'

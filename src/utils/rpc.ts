@@ -17,7 +17,7 @@ export type RpcStatus = {
 
 /**
  * RPC Health Check + Failover
- * 
+ *
  * If primary is unavailable, switches to fallback.
  * Periodically re-checks primary to switch back.
  */
