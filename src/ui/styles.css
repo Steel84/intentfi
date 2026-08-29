@@ -747,7 +747,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 .landing-logo {
   margin: 0;
-  color: var(--text);
+  color: var(--accent);
   font-size: clamp(3rem, 10vw, 5rem);
   font-weight: 750;
   letter-spacing: -0.055em;
