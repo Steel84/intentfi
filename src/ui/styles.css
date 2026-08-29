@@ -733,3 +733,44 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   font-weight: 600;
   text-align: center;
 }
+
+/* First-run landing */
+.connect-prompt {
+  min-height: min(62vh, 34rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1.5rem 5rem;
+  text-align: center;
+}
+
+.landing-logo {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(3rem, 10vw, 5rem);
+  font-weight: 750;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.landing-tagline {
+  max-width: 34rem;
+  margin: 1.25rem 0 2rem;
+  color: var(--text-muted);
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  line-height: 1.5;
+}
+
+.footer {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  font-size: 0.7rem;
+  opacity: 0.72;
+}
+
+@media (max-width: 480px) {
+  .connect-prompt { min-height: 58vh; padding-inline: 0.75rem; }
+  .landing-logo { font-size: clamp(2.75rem, 16vw, 4rem); }
+  .landing-tagline { font-size: 1rem; }
+}

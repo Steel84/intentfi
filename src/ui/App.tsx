@@ -45,32 +45,38 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <h1 className="logo">IntentFi</h1>
-        <div className="wallet-area">
-          <ConnectKitButton />
-          {isConnected && (
+      {isConnected && (
+        <header className="header">
+          <h1 className="logo">IntentFi</h1>
+          <div className="wallet-area">
             <div className="wallet-balances" aria-label="Wallet balances">
-              {nativeBalance && (
-                <span className="balance">
-                  {parseFloat(nativeBalance.formatted).toFixed(4)} {nativeBalance.symbol}
-                </span>
-              )}
-              {usdcBalance && (
-                <span className="balance">{parseFloat(usdcBalance.formatted).toFixed(2)} USDC</span>
-              )}
-              {wethBalance && (
-                <span className="balance">{parseFloat(wethBalance.formatted).toFixed(6)} WETH</span>
-              )}
+                {nativeBalance && (
+                  <span className="balance">
+                    {parseFloat(nativeBalance.formatted).toFixed(4)} {nativeBalance.symbol}
+                  </span>
+                )}
+                {usdcBalance && (
+                  <span className="balance">
+                    {parseFloat(usdcBalance.formatted).toFixed(2)} USDC
+                  </span>
+                )}
+                {wethBalance && (
+                  <span className="balance">
+                    {parseFloat(wethBalance.formatted).toFixed(6)} WETH
+                  </span>
+                )}
             </div>
-          )}
-        </div>
-      </header>
+          </div>
+        </header>
+      )}
 
       <main className="main">
         {!isConnected ? (
           <div className="connect-prompt">
-            <p>Connect your wallet to get started</p>
+            <h1 className="landing-logo">IntentFi</h1>
+            <p className="landing-tagline">
+              A safety and policy execution layer for onchain financial intents.
+            </p>
             <ConnectKitButton />
           </div>
         ) : flow.isWrongChain ? (
