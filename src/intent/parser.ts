@@ -104,7 +104,14 @@ export function tryFallbackParse(input: string): SwapIntent | null {
     /swap\s+(\d+(?:\.\d+)?)\s+([a-zA-Z][a-zA-Z0-9_-]{1,15})\s+(?:to|for)\s+([a-zA-Z][a-zA-Z0-9_-]{1,15})(?:.*?(?:max|maximum)\s+(\d+(?:\.\d+)?)%\s*slippage)?/i,
   );
   if (!match) return null;
+
   const [, amount, tokenIn, tokenOut, slippage] = match;
+  // A default is safe only when the user did not mention slippage at all.
+  // If a slippage-like expression is present but unsupported or malformed,
+  // fail closed instead of silently changing the user's requested limit.
+  const slippageMentioned = /\b(?:max(?:imum)?|slipp\w*)\b/i.test(input);
+  if (slippageMentioned && !slippage) return null;
+
   const result = validateSwapIntent({
     action: 'swap',
     tokenIn,

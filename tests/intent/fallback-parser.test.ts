@@ -50,4 +50,27 @@ describe('Fallback Regex Parser', () => {
     expect(result!.tokenIn).toBe('USDC');
     expect(result!.tokenOut).toBe('WETH');
   });
+  it('fails closed when a slippage-like expression is malformed or unsupported', () => {
+    const malformed = [
+      'Swap 1 USDC to ETH, max 0.5% slippag',
+      'Swap 1 USDC to ETH, max 0,5% slippage',
+      'Swap 1 USDC to ETH, max 0.5 percent slippage',
+      'Swap 1 USDC to ETH, max half a percent slippage',
+      'Swap 1 USDC to ETH, max 0.5 slippage',
+      'Swap 1 USDC to ETH, max 50 bps slippage',
+      'Swap 1 USDC to ETH, max -0.5% slippage',
+    ];
+    for (const phrase of malformed) expect(tryFallbackParse(phrase)).toBeNull();
+  });
+
+  it('uses the 0.5% default only when slippage is not mentioned', () => {
+    const result = tryFallbackParse('Swap 1 USDC to ETH');
+    expect(result?.maxSlippageBps).toBe(50);
+  });
+
+  it('passes explicit 100% through parsing for policy evaluation', () => {
+    const result = tryFallbackParse('Swap 1 USDC to ETH, max 100% slippage');
+    expect(result?.maxSlippageBps).toBe(10000);
+  });
+
 });
