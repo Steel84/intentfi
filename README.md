@@ -85,11 +85,10 @@ No API keys are required to run the demo. Connect MetaMask to Sepolia and go.
 
 ### Verified Transaction (Sepolia)
 
-Real swap executed through the full UI flow with MetaMask signature:
-
 > 🔗 **[View on Etherscan](https://sepolia.etherscan.io/tx/0x0f200a532a54b28acd01bee2b592fe1e054ac74510646865ec9887929565b224)**
 >
-> `swap 5 USDC → WETH` · Sepolia testnet · signed via MetaMask
+> Onchain swap signed via MetaMask and confirmed on Sepolia.
+> The full UI flow is demonstrated separately in the screenshots below; the transaction hash verifies the signed onchain execution.
 
 _Note: the app displays "ETH" for readability; the onchain output is WETH. See [`AI_DISCLOSURE.md`](./AI_DISCLOSURE.md) for details._
 
