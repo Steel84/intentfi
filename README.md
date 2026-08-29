@@ -87,19 +87,21 @@ No API keys are required to run the demo. Connect MetaMask to Sepolia and go.
 
 Real swap executed through the full UI flow with MetaMask signature:
 
-<!-- ⚠️ BEFORE INSERTING: open the tx on Etherscan and copy the exact
-     input amount, input token, and output token from the transaction.
-     Do NOT paraphrase — match the onchain data verbatim. -->
-> 🔗 **[View on Etherscan](https://sepolia.etherscan.io/tx/TX_HASH_PLACEHOLDER)**
+> 🔗 **[View on Etherscan](https://sepolia.etherscan.io/tx/0x0f200a532a54b28acd01bee2b592fe1e054ac74510646865ec9887929565b224)**
 >
-> _Replace this line with the exact swap details from the transaction: amount, direction, tokens._
+> `swap 5 USDC → WETH` · Sepolia testnet · signed via MetaMask
 
 ### Flow Screenshots
 
-<!-- Add 2-3 screenshots: Parsed Intent → Policy checks → Confirmation -->
-<!-- ![Parsed Intent](./docs/screenshots/intent.png) -->
-<!-- ![Policy & Simulation](./docs/screenshots/policy.png) -->
-<!-- ![Confirmation](./docs/screenshots/confirmation.png) -->
+| Parsed Intent & Live Quote | Policy Rejected (missing allowance) |
+|:---:|:---:|
+| ![Parsed Intent](./docs/screenshots/01-parsed-intent-quote.png) | ![Policy Rejected](./docs/screenshots/02-policy-rejected-allowance.png) |
+
+| Policy Approved & Simulation | Transaction Confirmed |
+|:---:|:---:|
+| ![Policy Approved](./docs/screenshots/03-policy-approved-simulation.png) | ![Confirmation](./docs/screenshots/04-confirmation.png) |
+
+*The "Policy Rejected" screenshot demonstrates fail-closed behavior: the policy engine blocks execution until token approval is granted.*
 
 ---
 
