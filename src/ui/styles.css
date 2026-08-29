@@ -722,3 +722,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .progress-step { font-size: 0.58rem; }
   .agent-status { font-size: 0.8rem; }
 }
+
+.quote-expired-warning {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+  color: var(--danger);
+  font-weight: 600;
+  text-align: center;
+}

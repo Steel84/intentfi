@@ -157,6 +157,7 @@ export default function App() {
                 quote={flow.quote}
                 onConfirmClick={flow.executeTransaction}
                 onCancelClick={flow.reset}
+                onRefreshQuote={flow.refreshQuote}
               />
             )}
 
