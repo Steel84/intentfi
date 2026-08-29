@@ -261,7 +261,7 @@ export function useSwapFlow() {
         throw new Error(finalSimulation.error || 'Final preflight failed');
       }
       const finalPolicy = evaluatePolicy(intent, quote, finalSimulation, policyConfig);
-      if (finalPolicy.status !== 'PASS') throw new Error('Final policy check failed');
+      if (finalPolicy.status !== 'PASS') throw new Error(`Policy rejected: ${formatPolicyFailures(finalPolicy)}`);
       setFlowState((prev) => ({ ...prev, simulation: finalSimulation, policyResult: finalPolicy }));
 
       const hash = await walletClient.sendTransaction({
@@ -368,15 +368,21 @@ function saveHistory(address: `0x${string}`, entries: TxHistoryEntry[]) {
   }
 }
 
+function formatBps(value?: string): string {
+  if (!value) return 'unknown';
+  const match = value.match(/^(\d+(?:\.\d+)?)\s*bps$/i);
+  return match ? `${Number(match[1]) / 100}%` : value;
+}
+
 function formatPolicyFailures(result: PolicyResult): string {
   return result.checks
     .filter((check) => !check.passed)
     .map((check) => {
       switch (check.name) {
         case 'Slippage Within Limit':
-          return `Slippage exceeds limit (${check.actual ?? 'unknown'} requested, max ${check.limit ?? 'unknown'} allowed)`;
+          return `Slippage exceeds limit (${formatBps(check.actual)} requested, max ${formatBps(check.limit)} allowed)`;
         case 'Price Impact Within Limit':
-          return `Price impact exceeds limit (${check.actual ?? 'unknown'}, max ${check.limit ?? 'unknown'})`;
+          return `Price impact exceeds limit (${formatBps(check.actual)}, max ${formatBps(check.limit)})`;
         case 'Balance Sufficient':
           return 'Insufficient token balance for this swap';
         case 'Token Allowance Set':
