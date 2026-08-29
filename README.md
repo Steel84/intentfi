@@ -91,6 +91,8 @@ Real swap executed through the full UI flow with MetaMask signature:
 >
 > `swap 5 USDC → WETH` · Sepolia testnet · signed via MetaMask
 
+_Note: the app displays "ETH" for readability; the onchain output is WETH. See [`AI_DISCLOSURE.md`](./AI_DISCLOSURE.md) for details._
+
 ### Flow Screenshots
 
 | Parsed Intent & Live Quote | Policy Rejected (missing allowance) |
