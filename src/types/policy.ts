@@ -17,7 +17,6 @@ export type PolicyResult = {
 };
 
 export type PolicyConfig = {
-  maxTransactionValueUsd: number;
   maxSlippageBps: number;
   maxPriceImpactBps: number;
   allowedProtocols: string[];

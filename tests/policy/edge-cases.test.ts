@@ -3,7 +3,6 @@ import { evaluatePolicy } from '../../src/policy/engine';
 import { SwapIntent, Quote, SimulationResult, PolicyConfig } from '../../src/types';
 
 const policy: PolicyConfig = {
-  maxTransactionValueUsd: 100,
   maxSlippageBps: 50,
   maxPriceImpactBps: 100,
   allowedProtocols: ['uniswap-v3'],

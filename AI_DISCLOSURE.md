@@ -26,7 +26,11 @@ AI coding assistants were used during development of this project.
 ## Tools Used
 
 - ClickUp Brain: project scaffolding, code generation, review, and test assistance
-- OpenAI GPT-4o-mini: originally supported as an optional intent-parser provider; the shipped static UI uses the validated deterministic fallback parser and does not expose an OpenAI secret in the browser
+- OpenAI GPT-4o-mini: the `parseIntent()` integration exists in `src/intent/parser.ts` as an optional architectural path, but is not connected to the shipped UI; the shipped UI calls `tryFallbackParse()` and does not expose an OpenAI secret in the browser
+
+## Current production parser status
+
+The shipped production/demo UI uses the deterministic `tryFallbackParse()` function from `src/intent/parser.ts`, called by `src/ui/IntentInput.tsx`. The `parseIntent()` function and `gpt-4o-mini` request path are implemented in the source tree but are not invoked by the shipped UI. Therefore, the current demo does not use an LLM at runtime for intent parsing.
 
 ## Runtime Trust Boundary
 

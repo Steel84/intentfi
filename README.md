@@ -30,7 +30,7 @@ User Input (NL or Form)
              │
              ▼
 ┌──────────────────────────┐
-│      Intent Layer         │  NL -> SwapIntent (OpenAI / Regex fallback)
+│      Intent Layer         │  NL -> SwapIntent (deterministic fallback in shipped UI)
 └────────────┬─────────────┘
              │
              ▼
@@ -61,7 +61,7 @@ User Input (NL or Form)
 
 ## Key Design Decisions
 
-- **LLM is ONLY used for NL parsing** -- never for transaction construction or policy decisions
+- **The shipped UI uses the deterministic fallback parser** -- the optional LLM parser exists in `src/intent/parser.ts` but is not connected to the shipped UI; it is never used for transaction construction or policy decisions
 - **Policy engine is pure deterministic code** -- no AI, no probabilistic decisions
 - **Failed simulation blocks execution** -- transaction cannot be sent if preflight fails
 - **No private keys stored** -- uses browser wallet via wagmi/ConnectKit
@@ -77,8 +77,14 @@ User Input (NL or Form)
 - **Chain:** Ethereum Sepolia testnet
 - **DEX:** Uniswap V3 (QuoterV2 + SwapRouter02 with deadline-protected multicall)
 - **RPC:** Configurable primary + fallback with health check
-- **Tests:** Vitest (59 tests)
-- **NL Parser:** validated deterministic fallback parser in the static client; optional LLM integration belongs behind a server-side proxy
+- **Tests:** Vitest (88 tests)
+- **NL Parser:** the production/demo UI calls `tryFallbackParse()` from `src/intent/parser.ts`; the `parseIntent()` / `gpt-4o-mini` path is implemented but currently not wired into the shipped UI
+
+## Intent parsing status
+
+The shipped production/demo flow uses the deterministic `tryFallbackParse()` parser directly from `IntentInput.tsx`. The `parseIntent()` function and its `gpt-4o-mini` integration remain in `src/intent/parser.ts` as an optional architectural path, but are not called by the shipped UI and should not be described as active runtime behavior.
+
+The v0.1 policy intentionally covers chain, protocol, token allowlists, slippage, price impact, quote freshness, balance, allowance, and simulation. A USD transaction-value limit is not part of the current policy until a reliable price-feed-based check is implemented.
 
 ## Quick Start
 
@@ -121,7 +127,7 @@ npm test
 Test coverage:
 
 - Intent validation (6 tests)
-- Fallback regex parser (6 tests)
+- Fallback regex parser (10 tests)
 - Policy engine core (7 tests)
 - Policy engine edge cases (9 tests)
 - Token utilities (16 tests)

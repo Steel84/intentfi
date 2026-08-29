@@ -15,7 +15,6 @@ const intent: SwapIntent = {
 };
 
 const policy: PolicyConfig = {
-  maxTransactionValueUsd: 100,
   maxSlippageBps: 50,
   maxPriceImpactBps: 100,
   allowedProtocols: ['uniswap-v3'],

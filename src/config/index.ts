@@ -40,7 +40,6 @@ export const TOKENS: Record<string, { address: string; decimals: number; symbol:
 
 // Default policy for v0.1 (hardcoded)
 export const DEFAULT_POLICY: PolicyConfig = {
-  maxTransactionValueUsd: 100,
   maxSlippageBps: 50,
   maxPriceImpactBps: 100,
   allowedProtocols: ['uniswap-v3'],
@@ -75,11 +74,6 @@ export function normalizePolicyConfig(value: unknown): PolicyConfig {
     : DEFAULT_POLICY.allowedProtocols;
 
   return {
-    maxTransactionValueUsd: numberInRange(
-      candidate.maxTransactionValueUsd,
-      DEFAULT_POLICY.maxTransactionValueUsd,
-      1_000_000,
-    ),
     maxSlippageBps: Math.floor(
       numberInRange(candidate.maxSlippageBps, DEFAULT_POLICY.maxSlippageBps, 10_000),
     ),
