@@ -1,182 +1,178 @@
 # IntentFi
 
-**AI-assisted on-chain intent execution system.**
+**A safety and policy execution layer for onchain financial intents.**
+
+Natural-language intents are converted into a strictly validated structured representation. Deterministic policy and transaction simulation enforce the safety boundary before the user signs anything.
 
 > LLM proposes. Deterministic policy decides. Human approves. Blockchain executes.
 
-## What it does
+---
 
-IntentFi translates natural-language financial intents into validated, policy-checked, simulated on-chain transactions.
+## The Problem
 
-Core flow:
+AI agents that can read your wallet and broadcast transactions are a security nightmare waiting to happen. A single hallucinated parameter, a prompt injection, or a silently wrong slippage value can drain real funds, and no amount of "are you sure?" dialogs fixes that if the validation itself is probabilistic.
 
-```
-User Input (NL or Form)
-  -> Parse Intent
-    -> Fetch Live Quote (Uniswap V3)
-      -> Policy Engine (deterministic)
-        -> Transaction Simulation
-          -> User Approval
-            -> Execute on Sepolia Testnet
-              -> Confirmation + Explorer Link
-```
+IntentFi solves this by **separating concerns**: AI may _propose_ a structured intent, but a deterministic policy engine _validates_ it, a transaction simulation _verifies_ it, and the human _signs_ it. No single layer, and certainly no LLM, has unilateral authority over funds.
+
+---
 
 ## Architecture
 
 ```
-┌──────────────────────────┐
-│      Web UI (React)       │  wagmi + ConnectKit
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│      Intent Layer         │  NL -> SwapIntent (deterministic fallback in shipped UI)
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│     Policy Engine         │  Deterministic validation (no LLM)
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│   Protocol Adapter        │  Uniswap V3 QuoterV2 + SwapRouter
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│   Simulation Layer        │  Balance + Allowance + Gas + eth_call
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│   User Approval           │  Explicit confirm required
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│   Wallet / Execution      │  wagmi sendTransaction
-└──────────────────────────┘
+Natural Language Input
+      ↓
+Structured Intent (deterministic fallback parser)
+      ↓
+Deterministic Policy Engine
+      ↓
+Transaction Simulation / Preflight
+      ↓
+Human Approval (MetaMask)
+      ↓
+Onchain Execution (Uniswap V3, Sepolia)
 ```
 
-## Key Design Decisions
+| Layer | What it does |
+|---|---|
+| **Intent Parser** | Converts free-text input ("swap 100 USDC to ETH, max 0.5% slippage") into a validated `SwapIntent` struct. The shipped UI uses a deterministic regex-based parser. |
+| **Policy Engine** | Pure deterministic code. Checks chain allowlist, protocol allowlist, token allowlist, slippage bounds, price impact ceiling, quote freshness, and balance/allowance sufficiency. Any violation blocks execution. |
+| **Simulation / Preflight** | Runs balance check, allowance check, gas estimation, and full `eth_call` simulation against the real chain state before the user is asked to sign. Failed simulation = blocked transaction. |
+| **Human Approval** | The user reviews the complete transaction preview (amounts, rates, fees, policy results, simulation outcome) and explicitly signs via MetaMask. No blind approvals. |
+| **Onchain Execution** | Uniswap V3 SwapRouter02 with deadline-protected `multicall`. Token approval is scoped to the exact input amount (no unlimited approvals). |
 
-- **The shipped UI uses the deterministic fallback parser** -- the optional LLM parser exists in `src/intent/parser.ts` but is not connected to the shipped UI; it is never used for transaction construction or policy decisions
-- **Policy engine is pure deterministic code** -- no AI, no probabilistic decisions
-- **Failed simulation blocks execution** -- transaction cannot be sent if preflight fails
-- **No private keys stored** -- uses browser wallet via wagmi/ConnectKit
-- **Integer arithmetic** -- all token amounts use BigInt, no floating point for financial math
-- **Fallback at every layer** -- deterministic parser in the static client, fallback RPC if primary fails
-- **Fail closed** -- unsupported tokens, unknown price impact, reverted receipts, stale quotes, and failed final preflight block execution
-- **No blind approval** -- the app approves only the exact input amount required for the current swap
+---
 
-## Tech Stack
+## AI Transparency
 
-- **Frontend:** React 18 + TypeScript + Vite
-- **Wallet:** wagmi 2 + ConnectKit
-- **Chain:** Ethereum Sepolia testnet
-- **DEX:** Uniswap V3 (QuoterV2 + SwapRouter02 with deadline-protected multicall)
-- **RPC:** Configurable primary + fallback with health check
-- **Tests:** Vitest (88 tests)
-- **NL Parser:** the production/demo UI calls `tryFallbackParse()` from `src/intent/parser.ts`; the `parseIntent()` / `gpt-4o-mini` path is implemented but currently not wired into the shipped UI
+> **This section is intentionally honest. Read it.**
 
-## Intent parsing status
+The shipped demo flow uses a **deterministic fallback parser** (`tryFallbackParse()` in `IntentInput.tsx`) for natural-language input — **not an LLM at runtime**.
 
-The shipped production/demo flow uses the deterministic `tryFallbackParse()` parser directly from `IntentInput.tsx`. The `parseIntent()` function and its `gpt-4o-mini` integration remain in `src/intent/parser.ts` as an optional architectural path, but are not called by the shipped UI and should not be described as active runtime behavior.
+An LLM-based parser (`parseIntent()` using `gpt-4o-mini`) is fully implemented in `src/intent/parser.ts` as an architectural extension point, but it is **not invoked by the shipped UI**. This is a deliberate design choice: the deterministic parser is sufficient for the supported intent vocabulary, and shipping an LLM dependency was not justified for the current scope.
 
-The v0.1 policy intentionally covers chain, protocol, token allowlists, slippage, price impact, quote freshness, balance, allowance, and simulation. A USD transaction-value limit is not part of the current policy until a reliable price-feed-based check is implemented.
+The policy engine, simulation layer, and execution path have **zero LLM dependency**. They are ordinary deterministic TypeScript.
+
+📄 **Full details:** [`AI_DISCLOSURE.md`](./AI_DISCLOSURE.md)
+
+---
 
 ## Quick Start
 
 ```bash
-# Install
+git clone https://github.com/Steel84/intentfi.git
+cd intentfi
 npm install
-
-# Configure
 cp .env.example .env
-# Edit .env with your values
-
-# Development
 npm run dev
-
-# Build
-npm run build
-
-# Test
-npm test
 ```
 
-## Environment Variables
+**Environment variables** (all optional — the app ships with working public defaults):
 
-| Variable                        | Required | Description                           |
-| ------------------------------- | -------- | ------------------------------------- |
-| `VITE_RPC_PRIMARY`              | No       | Primary Sepolia RPC (default: public) |
-| `VITE_RPC_FALLBACK`             | No       | Fallback RPC (default: publicnode)    |
-| `VITE_WALLETCONNECT_PROJECT_ID` | No       | WalletConnect v2 project ID           |
+| Variable | Default | Description |
+|---|---|---|
+| `VITE_RPC_PRIMARY` | `https://1rpc.io/sepolia` | Primary Sepolia RPC endpoint |
+| `VITE_RPC_FALLBACK` | `https://ethereum-sepolia-rpc.publicnode.com` | Fallback RPC (auto-failover on primary failure) |
+| `VITE_WALLETCONNECT_PROJECT_ID` | — | WalletConnect v2 project ID (optional) |
 
-## Testing
+No API keys are required to run the demo. Connect MetaMask to Sepolia and go.
 
-```bash
-# Run all tests
-npm run test:run
+---
 
-# Watch mode
-npm test
-```
+## Live Demo
 
-Test coverage:
+🎬 **Demo video:** _[coming soon]_
+<!-- Replace with actual link after recording -->
 
-- Intent validation (6 tests)
-- Fallback regex parser (10 tests)
-- Policy engine core (7 tests)
-- Policy engine edge cases (9 tests)
-- Token utilities (16 tests)
+### Verified Transaction (Sepolia)
 
-## Supported Tokens (Sepolia)
+Real swap executed through the full UI flow with MetaMask signature:
 
-| Token | Address                                      |
-| ----- | -------------------------------------------- |
-| USDC  | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
-| WETH  | `0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14` |
+<!-- ⚠️ BEFORE INSERTING: open the tx on Etherscan and copy the exact
+     input amount, input token, and output token from the transaction.
+     Do NOT paraphrase — match the onchain data verbatim. -->
+> 🔗 **[View on Etherscan](https://sepolia.etherscan.io/tx/TX_HASH_PLACEHOLDER)**
+>
+> _Replace this line with the exact swap details from the transaction: amount, direction, tokens._
 
-## Demo Scenario
+### Flow Screenshots
 
-> "Swap 100 USDC to ETH, max 0.5% slippage"
+<!-- Add 2-3 screenshots: Parsed Intent → Policy checks → Confirmation -->
+<!-- ![Parsed Intent](./docs/screenshots/intent.png) -->
+<!-- ![Policy & Simulation](./docs/screenshots/policy.png) -->
+<!-- ![Confirmation](./docs/screenshots/confirmation.png) -->
 
-1. Connect MetaMask to Sepolia
-2. Enter intent (NL or form)
-3. View parsed intent, live quote, policy checks
-4. Approve token spending (if first time)
-5. Confirm transaction
-6. View on Etherscan
+---
 
-The app also persists a small, wallet-scoped transaction history and local safety policy. History is capped at 10 entries and no private key or seed phrase is stored.
-The connected wallet header shows live ETH, USDC, and WETH balances from the configured RPC.
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, TypeScript, Vite |
+| Wallet | wagmi 2, ConnectKit, MetaMask |
+| Chain | Ethereum Sepolia testnet |
+| DEX | Uniswap V3 (QuoterV2 + SwapRouter02) |
+| RPC | Configurable primary + fallback with health check |
+| Arithmetic | BigInt throughout (no floating point for token math) |
+| Tests | Vitest, 88 tests (intent, parser, policy, tokens, quote expiry) |
+
+---
 
 ## Security Model
 
-- No private key storage
-- No automatic transactions
-- Explicit user confirmation required
-- Deterministic policy validation
-- Token address validation (never trust symbols alone)
-- Chain ID verification
-- Integer arithmetic for financial calculations
-- Testnet clearly labeled
+IntentFi's security posture is the core value proposition, not an afterthought:
+
+- **No private key storage** — the app never sees, stores, or transmits private keys. All signing happens in the browser wallet.
+- **No automatic transaction execution** — every transaction requires an explicit user-initiated wallet signature. There is no `eth_sendRawTransaction` path in the codebase.
+- **Deterministic policy checks** — chain allowlist, protocol allowlist, token allowlist, slippage bounds, price impact ceiling, quote freshness, balance sufficiency, allowance sufficiency, and transaction simulation must all pass before the user can sign.
+- **Exact-amount approvals** — token approvals are scoped to the precise input amount for the current swap. No unlimited `approve()`.
+- **Fail-closed design** — unsupported tokens, unknown price impact, unparseable slippage values, reverted simulations, stale quotes, and failed preflight checks all block execution.
+- **Fail-closed against malformed and adversarial input** — prompt injection attempts, malformed slippage input, and negative/missing values do not produce a valid intent. Covered by dedicated test cases (see [`AI_DISCLOSURE.md`](./AI_DISCLOSURE.md) for the full validation log).
+- **No secret material in the bundle** — `VITE_*` env vars are treated as public browser config. No API keys are required for the core flow.
+
+---
+
+## Supported Tokens (Sepolia Testnet)
+
+| Token | Address |
+|---|---|
+| USDC | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
+| WETH | `0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14` |
+
+---
+
+## Tests
+
+```bash
+npm run test:run    # 88 tests
+npm run typecheck   # strict TypeScript
+npm run lint        # format + type + custom checks
+npm run build       # production build
+```
+
+---
+
+## Project Structure
+
+```
+src/
+├── intent/        # Intent parsing (deterministic + LLM extension point)
+├── policy/        # Deterministic policy engine
+├── simulation/    # Balance, allowance, gas, eth_call preflight
+├── protocol/      # Uniswap V3 adapter (quote + calldata)
+├── flow/          # Transaction preparation pipeline
+├── wallet/        # wagmi config and connection helpers
+├── ui/            # React components and swap flow hook
+├── types/         # TypeScript type definitions
+├── utils/         # Token registry, RPC failover, error handling
+└── config/        # Chain and protocol configuration
+```
+
+---
 
 ## License
 
 MIT
 
-## Final acceptance checklist
+---
 
-Run the automated checks before the manual demo:
-
-```bash
-npm run typecheck
-npm run lint
-npm run test:run
-npm run build
-```
-
-The remaining acceptance step is intentionally manual: connect a pre-funded browser wallet on Sepolia, complete one real swap, and record the 2-4 minute demo without presenting mock success as a real transaction. The automated `tests/flow/mock-flow.test.ts` covers the complete proposal pipeline through calldata, simulation, and deterministic policy without signing.
+📄 **[`AI_DISCLOSURE.md`](./AI_DISCLOSURE.md)** — Full transparency on AI usage during development, runtime AI status, trust boundaries, and validation records.
