@@ -139,7 +139,7 @@ export default function App() {
                   </button>
                 )}
                 {flow.state === 'error' && !flow.needsApproval && (
-                  <button className="btn-retry" onClick={flow.reset}>
+                  <button className="btn-retry" onClick={flow.retry}>
                     Try Again
                   </button>
                 )}

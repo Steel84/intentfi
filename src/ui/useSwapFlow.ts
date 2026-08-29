@@ -155,10 +155,7 @@ export function useSwapFlow() {
           setFlowState((prev) => ({
             ...prev,
             state: 'error',
-            error: `Policy rejected: ${prepared.policyResult.checks
-              .filter((check) => !check.passed)
-              .map((check) => check.name)
-              .join(', ')}`,
+            error: `Policy rejected: ${formatPolicyFailures(prepared.policyResult)}`,
           }));
         }
       } catch (error) {
@@ -306,6 +303,12 @@ export function useSwapFlow() {
     if (flowState.intent && !actionInFlight.current) void runFlow(flowState.intent);
   }, [flowState.intent, runFlow]);
 
+  // Retry the complete proposal pipeline with a fresh quote and fresh preflight.
+  const retry = useCallback(() => {
+    if (flowState.intent && !actionInFlight.current) void runFlow(flowState.intent);
+    else reset();
+  }, [flowState.intent, reset, runFlow]);
+
   const updatePolicyConfig = useCallback((next: PolicyConfig) => {
     const safe = normalizePolicyConfig(next);
     localStorage.setItem('intentfi-policy', JSON.stringify(safe));
@@ -320,6 +323,7 @@ export function useSwapFlow() {
     approveToken,
     switchToSepolia,
     refreshQuote,
+    retry,
     reset,
     updatePolicyConfig,
   };
@@ -362,4 +366,36 @@ function saveHistory(address: `0x${string}`, entries: TxHistoryEntry[]) {
   } catch {
     /* storage is optional */
   }
+}
+
+function formatPolicyFailures(result: PolicyResult): string {
+  return result.checks
+    .filter((check) => !check.passed)
+    .map((check) => {
+      switch (check.name) {
+        case 'Slippage Within Limit':
+          return `Slippage exceeds limit (${check.actual ?? 'unknown'} requested, max ${check.limit ?? 'unknown'} allowed)`;
+        case 'Price Impact Within Limit':
+          return `Price impact exceeds limit (${check.actual ?? 'unknown'}, max ${check.limit ?? 'unknown'})`;
+        case 'Balance Sufficient':
+          return 'Insufficient token balance for this swap';
+        case 'Token Allowance Set':
+          return 'Token approval is required before this swap';
+        case 'Quote Fresh':
+          return 'Quote expired, please refresh the quote';
+        case 'Chain Allowed':
+          return 'Wrong network, switch to Sepolia';
+        case 'Protocol Allowed':
+          return `Protocol is not allowed (${check.actual ?? 'unknown'})`;
+        case 'Token In Allowed':
+          return `Input token is not allowed (${check.actual ?? 'unknown'})`;
+        case 'Token Out Allowed':
+          return `Output token is not allowed (${check.actual ?? 'unknown'})`;
+        case 'Simulation Passed':
+          return check.reason ? `Simulation failed (${check.reason})` : 'Simulation failed';
+        default:
+          return check.reason || `${check.name} failed`;
+      }
+    })
+    .join('; ');
 }

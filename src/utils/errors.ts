@@ -20,6 +20,14 @@ export function toUserError(
   if (normalized.includes('nonce')) return 'Wallet nonce is out of sync. Refresh and try again.';
   if (normalized.includes('timeout') || normalized.includes('timed out'))
     return 'The network took too long to respond. Try again.';
+  if (
+    normalized.includes('method not found') ||
+    normalized.includes('eth_sendrawtransaction') ||
+    normalized.includes('sendrawtransaction') ||
+    normalized.includes('rpc error') ||
+    normalized.includes('-32601')
+  )
+    return 'MetaMask RPC cannot broadcast this transaction. Change the wallet RPC and try again.';
   if (normalized.includes('revert') || normalized.includes('execution reverted'))
     return 'The transaction would revert on-chain. Refresh the quote and try again.';
   if (normalized.includes('no route') || normalized.includes('liquidity'))
