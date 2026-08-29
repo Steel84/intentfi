@@ -73,7 +73,7 @@ export default function App() {
       <main className="main">
         {!isConnected ? (
           <div className="connect-prompt">
-            <h1 className="landing-logo">IntentFi</h1>
+            <h1 className="landing-logo">Intent<span>Fi</span></h1>
             <p className="landing-tagline">
               A safety and policy execution layer for onchain financial intents.
             </p>
