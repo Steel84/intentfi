@@ -1,11 +1,25 @@
 /**
  * Stress test: 7 phrases through the hybrid parsing pipeline.
- * Usage: VITE_GEMINI_API_KEY=... node scripts/stress-test.mjs
+ * Reads VITE_GEMINI_API_KEY from the process environment or the local .env file.
+ * Usage: node scripts/stress-test.mjs
  */
 
+import { existsSync, readFileSync } from 'node:fs';
+
+function loadDotEnv(file = '.env') {
+  if (!existsSync(file)) return;
+  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match || match[1] in process.env) continue;
+    const value = match[2].replace(/^(['"])(.*)\1$/, '$2');
+    process.env[match[1]] = value;
+  }
+}
+
+loadDotEnv();
 const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY;
 if (!GEMINI_KEY) {
-  console.error('Set VITE_GEMINI_API_KEY');
+  console.error('Set VITE_GEMINI_API_KEY in .env or the process environment.');
   process.exit(1);
 }
 
