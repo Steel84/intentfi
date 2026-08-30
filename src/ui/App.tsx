@@ -50,21 +50,17 @@ export default function App() {
           <h1 className="logo">IntentFi</h1>
           <div className="wallet-area">
             <div className="wallet-balances" aria-label="Wallet balances">
-                {nativeBalance && (
-                  <span className="balance">
-                    {parseFloat(nativeBalance.formatted).toFixed(4)} {nativeBalance.symbol}
-                  </span>
-                )}
-                {usdcBalance && (
-                  <span className="balance">
-                    {parseFloat(usdcBalance.formatted).toFixed(2)} USDC
-                  </span>
-                )}
-                {wethBalance && (
-                  <span className="balance">
-                    {parseFloat(wethBalance.formatted).toFixed(6)} WETH
-                  </span>
-                )}
+              {nativeBalance && (
+                <span className="balance">
+                  {parseFloat(nativeBalance.formatted).toFixed(4)} {nativeBalance.symbol}
+                </span>
+              )}
+              {usdcBalance && (
+                <span className="balance">{parseFloat(usdcBalance.formatted).toFixed(2)} USDC</span>
+              )}
+              {wethBalance && (
+                <span className="balance">{parseFloat(wethBalance.formatted).toFixed(6)} WETH</span>
+              )}
             </div>
           </div>
         </header>
@@ -73,7 +69,9 @@ export default function App() {
       <main className="main">
         {!isConnected ? (
           <div className="connect-prompt">
-            <h1 className="landing-logo">Intent<span>Fi</span></h1>
+            <h1 className="landing-logo">
+              Intent<span>Fi</span>
+            </h1>
             <p className="landing-tagline">
               A safety and policy execution layer for onchain financial intents.
             </p>
