@@ -118,16 +118,25 @@ Rules:
 
 async function callGemini(userInput) {
   const MODEL = process.env.VITE_GEMINI_MODEL || 'gemini-3.6-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: PROMPT + '\n\nUser message:\n' + userInput }] }],
       generationConfig: { temperature: 0, responseMimeType: 'application/json' },
     }),
   });
-  if (!resp.ok) return { success: false, error: `API ${resp.status}` };
+  if (!resp.ok) {
+    let detail = '';
+    try {
+      const body = await resp.json();
+      detail = body?.error?.message || '';
+    } catch {
+      // Keep stress-test output readable when the provider sends no JSON.
+    }
+    return { success: false, error: `API ${resp.status}${detail ? `: ${detail}` : ''}` };
+  }
   const data = await resp.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (typeof text !== 'string') return { success: false, error: 'Invalid response' };

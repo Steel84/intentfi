@@ -44,12 +44,12 @@ export async function parseIntent(userInput: string, apiKey: string): Promise<Pa
   const model =
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_MODEL) ||
     'gemini-3.6-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [
           { role: 'user', parts: [{ text: GEMINI_PROMPT + '\n\nUser message:\n' + userInput }] },
@@ -62,8 +62,21 @@ export async function parseIntent(userInput: string, apiKey: string): Promise<Pa
     });
 
     if (!response.ok) {
+      let detail = '';
+      try {
+        const body = await response.json();
+        detail = typeof body?.error?.message === 'string' ? body.error.message : '';
+      } catch {
+        // Keep the user-facing error generic when the provider sends no JSON.
+      }
       if (response.status === 429)
         return { success: false, error: 'LLM is rate-limited. Try Form mode or wait a moment.' };
+      if (detail.toLowerCase().includes('location is not supported'))
+        return {
+          success: false,
+          error:
+            'Gemini API is not available in this location. Use Form mode or a server-side proxy in a supported location.',
+        };
       return { success: false, error: `LLM API error (${response.status})` };
     }
 
