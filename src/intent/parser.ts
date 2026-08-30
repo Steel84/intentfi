@@ -1,47 +1,90 @@
 import { SwapIntent, ParsedIntentResult } from '../types';
 import { CHAIN_CONFIG, TOKENS } from '../config';
 
-const SYSTEM_PROMPT = `You are an intent parser for a DeFi swap application.
-Return ONLY JSON matching: {"action":"swap","tokenIn":"SYMBOL","tokenOut":"SYMBOL","amountIn":"DECIMAL","maxSlippageBps":NUMBER}.
-Do not generate calldata, addresses, or transaction suggestions. Convert percentage slippage to basis points.`;
+// ---------------------------------------------------------------------------
+// Gemini prompt
+// ---------------------------------------------------------------------------
+
+const GEMINI_PROMPT = `You are an intent parser for a DeFi token swap application.
+Your ONLY job is to extract structured swap parameters from the user's message.
+
+Return ONLY a JSON object with these fields:
+{
+  "action": "swap",
+  "tokenIn": "SYMBOL",        // uppercase token symbol
+  "tokenOut": "SYMBOL",       // uppercase token symbol
+  "amountIn": "DECIMAL",      // decimal string, e.g. "100" or "0.5"
+  "maxSlippageBps": NUMBER,   // integer basis points (0.5% = 50)
+  "unsupportedConditions": [] // string[] of conditions the user stated
+                              // that are NOT part of the fields above
+                              // (e.g. gas limits, price movement checks,
+                              //  conditional execution, time constraints)
+}
+
+Rules:
+- Convert percentage slippage to integer basis points.
+- Use uppercase token symbols (ETH, WETH, USDC).
+- amountIn must be a positive decimal string. If the user says "all" or
+  doesn't give a concrete number, return {"error": "Amount must be a specific number"}.
+- If the user mentions conditions you cannot represent in the fields above,
+  list each one as a human-readable string in unsupportedConditions.
+  Still fill in the swap fields if possible.
+- If you cannot determine the swap at all, return {"error": "<reason>"}.
+- Do NOT generate calldata, addresses, or transaction suggestions.
+- Do NOT add commentary outside the JSON object.`;
+
+// ---------------------------------------------------------------------------
+// Gemini API call
+// ---------------------------------------------------------------------------
 
 export async function parseIntent(userInput: string, apiKey: string): Promise<ParsedIntentResult> {
   if (!userInput.trim()) return { success: false, error: 'Intent cannot be empty' };
-  if (!apiKey.trim()) return { success: false, error: 'Parser API key is not configured' };
+  if (!apiKey.trim()) return { success: false, error: 'LLM API key is not configured' };
+
+  const model =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_MODEL) ||
+    'gemini-2.0-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userInput },
+        contents: [
+          { role: 'user', parts: [{ text: GEMINI_PROMPT + '\n\nUser message:\n' + userInput }] },
         ],
-        temperature: 0,
-        response_format: { type: 'json_object' },
+        generationConfig: {
+          temperature: 0,
+          responseMimeType: 'application/json',
+        },
       }),
     });
-    if (!response.ok)
-      return {
-        success: false,
-        error:
-          response.status === 429
-            ? 'Parser is rate-limited. Use Form mode instead.'
-            : `Parser API error (${response.status})`,
-      };
+
+    if (!response.ok) {
+      if (response.status === 429)
+        return { success: false, error: 'LLM is rate-limited. Try Form mode or wait a moment.' };
+      return { success: false, error: `LLM API error (${response.status})` };
+    }
+
     const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (typeof content !== 'string')
-      return { success: false, error: 'Parser returned an invalid response' };
-    return validateSwapIntent(JSON.parse(content));
+    const text: unknown = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (typeof text !== 'string')
+      return { success: false, error: 'LLM returned an invalid response' };
+
+    const parsed = JSON.parse(text);
+    return validateSwapIntent(parsed);
   } catch (e: unknown) {
     return {
       success: false,
-      error: `Parse failed: ${e instanceof Error ? e.message : 'unknown error'}`,
+      error: `LLM parse failed: ${e instanceof Error ? e.message : 'unknown error'}`,
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Validation (shared by fallback, LLM, and form paths)
+// ---------------------------------------------------------------------------
 
 export function validateSwapIntent(raw: unknown): ParsedIntentResult {
   if (!raw || typeof raw !== 'object') return { success: false, error: 'Intent must be an object' };
@@ -85,6 +128,15 @@ export function validateSwapIntent(raw: unknown): ParsedIntentResult {
   if (tokenIn === tokenOut)
     return { success: false, error: 'Input and output tokens must be different' };
 
+  // Extract unsupportedConditions from the LLM response
+  let unsupportedConditions: string[] | undefined;
+  if (Array.isArray(candidate.unsupportedConditions)) {
+    const filtered = (candidate.unsupportedConditions as unknown[])
+      .filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+      .map((c) => c.trim());
+    if (filtered.length > 0) unsupportedConditions = filtered;
+  }
+
   return {
     success: true,
     intent: {
@@ -95,10 +147,14 @@ export function validateSwapIntent(raw: unknown): ParsedIntentResult {
       amountIn: candidate.amountIn.trim(),
       maxSlippageBps: candidate.maxSlippageBps,
     },
+    unsupportedConditions,
   };
 }
 
-/** Parse the deterministic fallback syntax used when no LLM key is configured. */
+// ---------------------------------------------------------------------------
+// Deterministic fallback parser (no LLM, no network)
+// ---------------------------------------------------------------------------
+
 export function tryFallbackParse(input: string): SwapIntent | null {
   const match = input.match(
     /swap\s+(\d+(?:\.\d+)?)\s+([a-zA-Z][a-zA-Z0-9_-]{1,15})\s+(?:to|for)\s+([a-zA-Z][a-zA-Z0-9_-]{1,15})(?:.*?(?:max|maximum)\s+(\d+(?:\.\d+)?)%\s*slippage)?/i,
@@ -106,9 +162,6 @@ export function tryFallbackParse(input: string): SwapIntent | null {
   if (!match) return null;
 
   const [, amount, tokenIn, tokenOut, slippage] = match;
-  // A default is safe only when the user did not mention slippage at all.
-  // If a slippage-like expression is present but unsupported or malformed,
-  // fail closed instead of silently changing the user's requested limit.
   const slippageMentioned = /\b(?:max(?:imum)?|slipp\w*)\b/i.test(input);
   if (slippageMentioned && !slippage) return null;
 

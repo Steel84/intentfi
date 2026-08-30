@@ -9,6 +9,8 @@ describe('user-facing wallet and RPC errors', () => {
   });
 
   it('keeps ordinary rejected wallet requests distinct', () => {
-    expect(toUserError(new Error('User rejected the request'))).toBe('Request rejected in your wallet.');
+    expect(toUserError(new Error('User rejected the request'))).toBe(
+      'Request rejected in your wallet.',
+    );
   });
 });

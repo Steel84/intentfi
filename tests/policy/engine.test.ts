@@ -98,10 +98,14 @@ describe('Policy Engine', () => {
 
   it('rejects an oversized 999999 USDC swap when balance is insufficient', () => {
     const intent = { ...baseIntent, amountIn: '999999' };
-    const simulation = { ...baseSimulation, success: false, balanceCheck: false, error: 'Insufficient USDC balance' };
+    const simulation = {
+      ...baseSimulation,
+      success: false,
+      balanceCheck: false,
+      error: 'Insufficient USDC balance',
+    };
     const result = evaluatePolicy(intent, baseQuote, simulation, policy);
     expect(result.status).toBe('REJECT');
     expect(result.checks.find((c) => c.name === 'Balance Sufficient')?.passed).toBe(false);
   });
-
 });

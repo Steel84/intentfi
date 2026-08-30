@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { SwapIntent } from '../types';
-import { validateSwapIntent, percentToBps, tryFallbackParse } from '../intent/parser';
+import { SwapIntent, ParsedIntentResult } from '../types';
+import { validateSwapIntent, percentToBps, tryFallbackParse, parseIntent } from '../intent/parser';
+import { UnsupportedConditionsGate } from './UnsupportedConditionsGate';
 import { AppState } from './App';
 
 type Props = {
@@ -12,10 +13,17 @@ type Props = {
 
 type InputMode = 'natural' | 'form';
 
+/** Pending intent that has unsupported conditions awaiting user acknowledgment. */
+type PendingGate = {
+  intent: SwapIntent;
+  conditions: string[];
+};
+
 export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
   const [mode, setMode] = useState<InputMode>('natural');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingGate, setPendingGate] = useState<PendingGate | null>(null);
 
   // Form fields
   const [formTokenIn, setFormTokenIn] = useState('USDC');
@@ -23,21 +31,45 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
   const [formAmount, setFormAmount] = useState('');
   const [formSlippage, setFormSlippage] = useState('0.5');
 
+  /** Route a successful parse result, gating on unsupported conditions. */
+  const handleResult = (result: ParsedIntentResult) => {
+    if (!result.success) {
+      onError(result.error);
+      return;
+    }
+    if (result.unsupportedConditions && result.unsupportedConditions.length > 0) {
+      setPendingGate({ intent: result.intent, conditions: result.unsupportedConditions });
+      return;
+    }
+    onIntentParsed(result.intent);
+  };
+
   const handleAnalyze = async () => {
     if (!input.trim()) return;
+    setPendingGate(null);
     setLoading(true);
 
-    // Keep the shipped static app free of browser-exposed provider secrets.
-    // The validated deterministic parser is enough for the demo scenario.
+    // 1. Try deterministic fallback first (no network, instant)
     const fallback = tryFallbackParse(input);
-    setLoading(false);
     if (fallback) {
+      setLoading(false);
       onIntentParsed(fallback);
-    } else {
-      onError(
-        'Could not parse intent. Try the form input or use a clearer format like: "Swap 100 USDC to ETH, max 0.5% slippage"',
-      );
+      return;
     }
+
+    // 2. Fallback returned null: try LLM if key is available
+    const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!geminiKey) {
+      setLoading(false);
+      onError(
+        'Could not parse intent. Try the Form input, or configure a Gemini API key for advanced parsing.',
+      );
+      return;
+    }
+
+    const llmResult = await parseIntent(input, geminiKey);
+    setLoading(false);
+    handleResult(llmResult);
   };
 
   const handleFormSubmit = () => {
@@ -61,6 +93,24 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
       onError(result.error);
     }
   };
+
+  // --- Unsupported conditions gate ---
+  if (pendingGate) {
+    return (
+      <UnsupportedConditionsGate
+        intent={pendingGate.intent}
+        conditions={pendingGate.conditions}
+        onContinue={() => {
+          const intent = pendingGate.intent;
+          setPendingGate(null);
+          onIntentParsed(intent);
+        }}
+        onCancel={() => {
+          setPendingGate(null);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="intent-input">
@@ -167,5 +217,4 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
   );
 }
 
-/** Fallback parsing is shared with the test suite so the no-key path stays real. */
 export { tryFallbackParse };

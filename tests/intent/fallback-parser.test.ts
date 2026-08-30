@@ -72,5 +72,4 @@ describe('Fallback Regex Parser', () => {
     const result = tryFallbackParse('Swap 1 USDC to ETH, max 100% slippage');
     expect(result?.maxSlippageBps).toBe(10000);
   });
-
 });

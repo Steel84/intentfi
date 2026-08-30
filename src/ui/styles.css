@@ -780,3 +780,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .landing-logo { font-size: clamp(2.75rem, 16vw, 4rem); }
   .landing-tagline { font-size: 1rem; }
 }
+
+/* Unsupported conditions gate */
+.unsupported-gate { border-color: var(--warning); }
+.unsupported-gate h3 { color: var(--warning); }
+.gate-intro { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.65rem; }
+.gate-conditions { padding-left: 1.2rem; margin-bottom: 0.65rem; }
+.gate-conditions li { color: var(--warning); font-size: 0.88rem; margin-bottom: 0.25rem; }
+.gate-warning { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 0.85rem; }
+.gate-buttons { display: flex; gap: 0.75rem; }
+.btn-gate-continue {
+  padding: 0.65rem 1.2rem; background: var(--warning); color: #000;
+  border: none; border-radius: 6px; font-weight: 600; cursor: pointer;
+}
+.btn-gate-continue:hover { opacity: 0.9; }
+.btn-gate-cancel {
+  padding: 0.65rem 1.2rem; background: transparent;
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-muted); cursor: pointer;
+}
+.btn-gate-cancel:hover { border-color: var(--danger); color: var(--danger); }

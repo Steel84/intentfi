@@ -261,7 +261,8 @@ export function useSwapFlow() {
         throw new Error(finalSimulation.error || 'Final preflight failed');
       }
       const finalPolicy = evaluatePolicy(intent, quote, finalSimulation, policyConfig);
-      if (finalPolicy.status !== 'PASS') throw new Error(`Policy rejected: ${formatPolicyFailures(finalPolicy)}`);
+      if (finalPolicy.status !== 'PASS')
+        throw new Error(`Policy rejected: ${formatPolicyFailures(finalPolicy)}`);
       setFlowState((prev) => ({ ...prev, simulation: finalSimulation, policyResult: finalPolicy }));
 
       const hash = await walletClient.sendTransaction({

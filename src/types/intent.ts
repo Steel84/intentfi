@@ -6,22 +6,16 @@
 export type SwapIntent = {
   action: 'swap';
   chainId: number;
-  tokenIn: string; // token symbol or address
-  tokenOut: string; // token symbol or address
-  amountIn: string; // human-readable amount
-  maxSlippageBps: number; // basis points (50 = 0.5%)
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: string;
+  maxSlippageBps: number;
   maxPriceImpactBps?: number;
   maxGasWei?: string;
 };
 
-export type Intent = SwapIntent; // union type for future actions
+export type Intent = SwapIntent;
 
 export type ParsedIntentResult =
-  | {
-      success: true;
-      intent: Intent;
-    }
-  | {
-      success: false;
-      error: string;
-    };
+  | { success: true; intent: Intent; unsupportedConditions?: string[] }
+  | { success: false; error: string };

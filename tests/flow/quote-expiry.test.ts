@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { prepareSwap, readQuotedAmount } from '../../src/flow/prepare';
 import { evaluatePolicy } from '../../src/policy/engine';
-import { SwapIntent, Quote, SimulationResult, PolicyConfig, TransactionRequest } from '../../src/types';
+import {
+  SwapIntent,
+  Quote,
+  SimulationResult,
+  PolicyConfig,
+  TransactionRequest,
+} from '../../src/types';
 
 // === Shared fixtures ===
 
@@ -53,8 +59,12 @@ function makeQuote(expiresAt: number): Quote {
 // === 1. Countdown correctness ===
 
 describe('Quote countdown logic', () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('remaining is non-negative when quote is far in the future', () => {
     const quote = makeQuote(Date.now() + 30_000);
@@ -104,8 +114,12 @@ describe('Quote countdown logic', () => {
 // === 2. Race condition at expiry boundary ===
 
 describe('Expiry boundary race condition', () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('executeTransaction guard blocks expired quote even if UI timer lag', () => {
     // Simulate: UI timer shows 1s remaining, but by the time the handler runs,
@@ -137,7 +151,7 @@ describe('Expiry boundary race condition', () => {
     const expiredQuote = makeQuote(Date.now() - 1);
     const result = evaluatePolicy(intent, expiredQuote, goodSim, policy);
     expect(result.status).toBe('REJECT');
-    const check = result.checks.find(c => c.name === 'Quote Fresh');
+    const check = result.checks.find((c) => c.name === 'Quote Fresh');
     expect(check).toBeDefined();
     expect(check!.passed).toBe(false);
   });
@@ -159,8 +173,12 @@ describe('Expiry boundary race condition', () => {
 // === 3. Refresh Quote produces new expiresAt and full re-evaluation ===
 
 describe('Refresh Quote flow', () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('refreshed quote has new expiresAt in the future', async () => {
     let callCount = 0;
@@ -174,9 +192,16 @@ describe('Refresh Quote flow', () => {
     const simulate = async () => goodSim;
 
     // First call
-    const result1 = await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate, now: () => Date.now(),
-    });
+    const result1 = await prepareSwap(
+      intent,
+      '0x0000000000000000000000000000000000000001',
+      policy,
+      {
+        adapter,
+        simulate,
+        now: () => Date.now(),
+      },
+    );
     expect(result1.quote.expiresAt).toBeGreaterThan(Date.now());
     expect(result1.policyResult.status).toBe('PASS');
 
@@ -185,9 +210,16 @@ describe('Refresh Quote flow', () => {
     expect(Date.now() >= result1.quote.expiresAt).toBe(true);
 
     // Refresh (second call, simulates what refreshQuote does)
-    const result2 = await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate, now: () => Date.now(),
-    });
+    const result2 = await prepareSwap(
+      intent,
+      '0x0000000000000000000000000000000000000001',
+      policy,
+      {
+        adapter,
+        simulate,
+        now: () => Date.now(),
+      },
+    );
     expect(result2.quote.expiresAt).toBeGreaterThan(Date.now());
     expect(result2.policyResult.status).toBe('PASS');
     expect(callCount).toBe(2);
@@ -205,12 +237,16 @@ describe('Refresh Quote flow', () => {
     };
 
     await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate: async () => goodSim, now: () => Date.now(),
+      adapter,
+      simulate: async () => goodSim,
+      now: () => Date.now(),
     });
     vi.advanceTimersByTime(35_000);
 
     await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate: async () => goodSim, now: () => Date.now(),
+      adapter,
+      simulate: async () => goodSim,
+      now: () => Date.now(),
     });
 
     expect(quotes).toHaveLength(2);
@@ -230,7 +266,7 @@ describe('Multiple rapid refreshes', () => {
     async function simulateRunFlow(id: number, delayMs: number) {
       const currentRun = ++runId;
       const isCurrent = () => runId === currentRun;
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
       if (!isCurrent()) {
         results.push(`run-${id}-discarded`);
         return;
@@ -241,8 +277,8 @@ describe('Multiple rapid refreshes', () => {
     // Fire 3 rapid refreshes with different latencies
     await Promise.all([
       simulateRunFlow(1, 100), // slow, will be stale
-      simulateRunFlow(2, 50),  // medium, will be stale
-      simulateRunFlow(3, 10),  // fast, will win
+      simulateRunFlow(2, 50), // medium, will be stale
+      simulateRunFlow(3, 10), // fast, will win
     ]);
 
     // Only the last one should be applied
@@ -300,7 +336,9 @@ describe('Full re-evaluation after refresh', () => {
 
     // First pass
     const r1 = await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate, now: () => Date.now(),
+      adapter,
+      simulate,
+      now: () => Date.now(),
     });
     expect(callLog[0]).toEqual(['getQuote', 'buildTransaction', 'simulate']);
     expect(r1.policyResult.status).toBe('PASS');
@@ -308,7 +346,9 @@ describe('Full re-evaluation after refresh', () => {
     // Second pass (refresh)
     round = 1;
     const r2 = await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate, now: () => Date.now(),
+      adapter,
+      simulate,
+      now: () => Date.now(),
     });
     expect(callLog[1]).toEqual(['getQuote', 'buildTransaction', 'simulate']);
     expect(r2.policyResult.status).toBe('PASS');
@@ -326,16 +366,25 @@ describe('Full re-evaluation after refresh', () => {
       simulationRound++;
       if (simulationRound === 1) return goodSim;
       // Second call: balance dropped
-      return { success: false, balanceCheck: false, allowanceCheck: true, error: 'Insufficient balance' };
+      return {
+        success: false,
+        balanceCheck: false,
+        allowanceCheck: true,
+        error: 'Insufficient balance',
+      };
     };
 
     const r1 = await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate, now: () => Date.now(),
+      adapter,
+      simulate,
+      now: () => Date.now(),
     });
     expect(r1.policyResult.status).toBe('PASS');
 
     const r2 = await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate, now: () => Date.now(),
+      adapter,
+      simulate,
+      now: () => Date.now(),
     });
     expect(r2.policyResult.status).toBe('REJECT');
     expect(r2.simulation.balanceCheck).toBe(false);
@@ -356,14 +405,21 @@ describe('Approve path regression', () => {
     const simulate = async (): Promise<SimulationResult> => {
       // First call: no allowance. After approval, allowance is set.
       if (!approvalDone) {
-        return { success: false, balanceCheck: true, allowanceCheck: false, error: 'Approval required' };
+        return {
+          success: false,
+          balanceCheck: true,
+          allowanceCheck: false,
+          error: 'Approval required',
+        };
       }
       return goodSim;
     };
 
     // Before approval
     const r1 = await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate, now: () => Date.now(),
+      adapter,
+      simulate,
+      now: () => Date.now(),
     });
     expect(r1.simulation.allowanceCheck).toBe(false);
     expect(r1.policyResult.status).toBe('REJECT');
@@ -373,7 +429,9 @@ describe('Approve path regression', () => {
 
     // Refresh after approval
     const r2 = await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate, now: () => Date.now(),
+      adapter,
+      simulate,
+      now: () => Date.now(),
     });
     expect(r2.simulation.allowanceCheck).toBe(true);
     expect(r2.policyResult.status).toBe('PASS');
@@ -393,14 +451,18 @@ describe('Approve path regression', () => {
     const simulate = async () => goodSim;
 
     const r1 = await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate, now: () => Date.now(),
+      adapter,
+      simulate,
+      now: () => Date.now(),
     });
     expect(r1.simulation.allowanceCheck).toBe(true);
     expect(r1.policyResult.status).toBe('PASS');
 
     // Refresh
     const r2 = await prepareSwap(intent, '0x0000000000000000000000000000000000000001', policy, {
-      adapter, simulate, now: () => Date.now(),
+      adapter,
+      simulate,
+      now: () => Date.now(),
     });
     expect(r2.simulation.allowanceCheck).toBe(true);
     expect(r2.policyResult.status).toBe('PASS');

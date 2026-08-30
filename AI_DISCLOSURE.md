@@ -26,11 +26,18 @@ AI coding assistants were used during development of this project.
 ## Tools Used
 
 - ClickUp Brain: project scaffolding, code generation, review, and test assistance
-- OpenAI GPT-4o-mini: the `parseIntent()` integration exists in `src/intent/parser.ts` as an optional architectural path, but is not connected to the shipped UI; the shipped UI calls `tryFallbackParse()` and does not expose an OpenAI secret in the browser
+- Google Gemini (gemini-2.0-flash or configured model): used at runtime as a fallback intent parser when the deterministic regex parser cannot handle the user's phrasing. Invoked only when `VITE_GEMINI_API_KEY` is configured. The LLM receives only the user's swap phrase and a fixed system prompt. No private keys, wallet data, or transaction calldata are sent to the LLM.
 
 ## Current production parser status
 
-The shipped production/demo UI uses the deterministic `tryFallbackParse()` function from `src/intent/parser.ts`, called by `src/ui/IntentInput.tsx`. The `parseIntent()` function and `gpt-4o-mini` request path are implemented in the source tree but are not invoked by the shipped UI. Therefore, the current demo does not use an LLM at runtime for intent parsing.
+The shipped UI uses a two-stage hybrid parser:
+
+1. **`tryFallbackParse()`** (deterministic regex): runs first, instantly, with no network call. Handles canonical formats like "Swap 100 USDC to ETH, max 0.5% slippage".
+2. **`parseIntent()` via Gemini API** (LLM fallback): invoked only when the regex parser returns null AND `VITE_GEMINI_API_KEY` is configured. Handles diverse phrasings like "exchange", "convert", "sell/buy", etc.
+
+Both paths produce output that goes through the same `validateSwapIntent()` function with identical strictness. The LLM cannot bypass validation, token allowlists, or the policy engine.
+
+If the LLM detects user conditions that cannot be represented in the SwapIntent schema (gas limits, price movement checks, conditional execution), these are surfaced as `unsupportedConditions` and shown to the user on a dedicated intermediate screen. The user must explicitly click "Continue without this condition" before any intent is created or sent to the policy engine.
 
 ## Runtime Trust Boundary
 
@@ -97,4 +104,4 @@ The server-side `curl` checks against Sepolia Etherscan returned HTTP `403`. Thi
 
 ## Review Process
 
-All AI-assisted code was reviewed and tested during development. Automated validation currently includes TypeScript checking, Prettier formatting, lint checks, 59 Vitest tests, and a production build. The final human MetaMask acceptance run remains the authoritative test for the browser-wallet UX.
+All AI-assisted code was reviewed and tested during development. Automated validation currently includes TypeScript checking, Prettier formatting, lint checks, 98 Vitest tests, and a production build. The final human MetaMask acceptance run remains the authoritative test for the browser-wallet UX.
