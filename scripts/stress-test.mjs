@@ -103,7 +103,7 @@ Rules:
 - Do NOT generate calldata, addresses, or suggestions.`;
 
 async function callGemini(userInput) {
-  const MODEL = process.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash';
+  const MODEL = process.env.VITE_GEMINI_MODEL || 'gemini-3.6-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_KEY}`;
   const resp = await fetch(url, {
     method: 'POST',

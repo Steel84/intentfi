@@ -26,7 +26,7 @@ AI coding assistants were used during development of this project.
 ## Tools Used
 
 - ClickUp Brain: project scaffolding, code generation, review, and test assistance
-- Google Gemini (gemini-2.0-flash or configured model): used at runtime as a fallback intent parser when the deterministic regex parser cannot handle the user's phrasing. Invoked only when `VITE_GEMINI_API_KEY` is configured. The LLM receives only the user's swap phrase and a fixed system prompt. No private keys, wallet data, or transaction calldata are sent to the LLM.
+- Google Gemini (gemini-3.6-flash by default, or configured model): used at runtime as a fallback intent parser when the deterministic regex parser cannot handle the user's phrasing. Invoked only when `VITE_GEMINI_API_KEY` is configured. The LLM receives only the user's swap phrase and a fixed system prompt. No private keys, wallet data, or transaction calldata are sent to the LLM.
 
 ## Current production parser status
 

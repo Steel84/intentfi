@@ -43,7 +43,7 @@ export async function parseIntent(userInput: string, apiKey: string): Promise<Pa
 
   const model =
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_MODEL) ||
-    'gemini-2.0-flash';
+    'gemini-3.6-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   try {
