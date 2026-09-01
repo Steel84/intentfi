@@ -21,7 +21,7 @@ IntentFi solves this by **separating concerns**: AI may _propose_ a structured i
 ```
 Natural Language Input
       ↓
-Structured Intent (deterministic fallback parser)
+Structured Intent (deterministic-first hybrid parser)
       ↓
 Deterministic Policy Engine
       ↓
@@ -34,7 +34,7 @@ Onchain Execution (Uniswap V3, Sepolia)
 
 | Layer | What it does |
 |---|---|
-| **Intent Parser** | Converts free-text input ("swap 100 USDC to ETH, max 0.5% slippage") into a validated `SwapIntent` struct. The shipped UI uses a deterministic regex-based parser. |
+| **Intent Parser** | Converts free-text input into a validated `SwapIntent` struct. The shipped UI tries the deterministic regex parser first, then uses Gemini 3.6 Flash only as a fallback for complex phrasing when configured. |
 | **Policy Engine** | Pure deterministic code. Checks chain allowlist, protocol allowlist, token allowlist, slippage bounds, price impact ceiling, quote freshness, and balance/allowance sufficiency. Any violation blocks execution. |
 | **Simulation / Preflight** | Runs balance check, allowance check, gas estimation, and full `eth_call` simulation against the real chain state before the user is asked to sign. Failed simulation = blocked transaction. |
 | **Human Approval** | The user reviews the complete transaction preview (amounts, rates, fees, policy results, simulation outcome) and explicitly signs via MetaMask. No blind approvals. |
@@ -46,11 +46,11 @@ Onchain Execution (Uniswap V3, Sepolia)
 
 > **This section is intentionally honest. Read it.**
 
-The shipped demo flow uses a **deterministic fallback parser** (`tryFallbackParse()` in `IntentInput.tsx`) for natural-language input — **not an LLM at runtime**.
+The shipped demo uses a **two-stage hybrid parser**. `tryFallbackParse()` runs first, instantly and deterministically. If it cannot understand the phrasing and `VITE_GEMINI_API_KEY` is configured, `parseIntent()` calls Gemini 3.6 Flash as an LLM fallback.
 
-An LLM-based parser (`parseIntent()` using `gpt-4o-mini`) is fully implemented in `src/intent/parser.ts` as an architectural extension point, but it is **not invoked by the shipped UI**. This is a deliberate design choice: the deterministic parser is sufficient for the supported intent vocabulary, and shipping an LLM dependency was not justified for the current scope.
+Both parser outputs pass through the same strict `validateSwapIntent()` function before entering the policy engine. The LLM can propose structured intent data, but it cannot generate calldata, decide policy results, or bypass validation.
 
-The policy engine, simulation layer, and execution path have **zero LLM dependency**. They are ordinary deterministic TypeScript.
+The policy engine, simulation layer, and execution path remain **fully deterministic** and have no LLM dependency.
 
 📄 **Full details:** [`AI_DISCLOSURE.md`](./AI_DISCLOSURE.md)
 
@@ -72,9 +72,11 @@ npm run dev
 |---|---|---|
 | `VITE_RPC_PRIMARY` | `https://1rpc.io/sepolia` | Primary Sepolia RPC endpoint |
 | `VITE_RPC_FALLBACK` | `https://ethereum-sepolia-rpc.publicnode.com` | Fallback RPC (auto-failover on primary failure) |
+| `VITE_GEMINI_API_KEY` | — | Optional Gemini 3.6 Flash key for complex natural-language fallback parsing |
+| `VITE_GEMINI_MODEL` | `gemini-3.6-flash` | Optional model override |
 | `VITE_WALLETCONNECT_PROJECT_ID` | — | WalletConnect v2 project ID (optional) |
 
-No API keys are required to run the demo. Connect MetaMask to Sepolia and go.
+No API keys are required for the deterministic path. Add `VITE_GEMINI_API_KEY` only if you want the LLM fallback for complex phrasing. Connect MetaMask to Sepolia and go.
 
 ---
 
@@ -91,6 +93,8 @@ No API keys are required to run the demo. Connect MetaMask to Sepolia and go.
 > The full UI flow is demonstrated separately in the screenshots below; the transaction hash verifies the signed onchain execution.
 
 _Note: the app displays "ETH" for readability; the onchain output is WETH. See [`AI_DISCLOSURE.md`](./AI_DISCLOSURE.md) for details._
+
+**LLM fallback path:** [View the 10 USDC → WETH transaction on Etherscan](https://sepolia.etherscan.io/tx/0x9eb003e30076e8d38eff2709182cf54df3db0f0309ccff787da3afac15acea03). This separate Sepolia transaction used the Gemini fallback parser; the explorer records 10 USDC in and 0.000727162079958134 WETH out.
 
 ### Flow Screenshots
 
@@ -116,7 +120,7 @@ _Note: the app displays "ETH" for readability; the onchain output is WETH. See [
 | DEX | Uniswap V3 (QuoterV2 + SwapRouter02) |
 | RPC | Configurable primary + fallback with health check |
 | Arithmetic | BigInt throughout (no floating point for token math) |
-| Tests | Vitest, 88 tests (intent, parser, policy, tokens, quote expiry) |
+| Tests | Vitest, 98 tests (intent, parser, hybrid fallback, policy, tokens, quote expiry) |
 
 ---
 
@@ -146,7 +150,7 @@ IntentFi's security posture is the core value proposition, not an afterthought:
 ## Tests
 
 ```bash
-npm run test:run    # 88 tests
+npm run test:run    # 98 tests
 npm run typecheck   # strict TypeScript
 npm run lint        # format + type + custom checks
 npm run build       # production build

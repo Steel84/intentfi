@@ -54,7 +54,7 @@ Natural-language input
   -> wallet signature and broadcast
 ```
 
-The LLM, when used behind a server-side integration, may propose structured intent data only. It must not generate calldata or decide the policy result. The policy engine is ordinary deterministic code and has no LLM dependency.
+The browser-side Gemini integration may propose structured intent data only. The API key is a public `VITE_*` browser variable and must be restricted and rate-limited; no secrets or wallet data are sent to Gemini. It must not generate calldata or decide the policy result. The policy engine is ordinary deterministic code and has no LLM dependency.
 
 The source tree contains no private-key loader, raw transaction signer, or `eth_sendRawTransaction` path. The only application broadcast calls are `walletClient.sendTransaction` in `src/ui/useSwapFlow.ts`: the approval call is reachable only from the explicit **Approve** button, and the swap call is reachable only from the explicit **Confirm Transaction** button after the flow is `ready`. Both calls require the wagmi browser wallet client, which delegates signing to the connected wallet provider. Policy failure, failed preflight, stale quote, wrong chain, missing balance, missing allowance, and a reverted receipt block the swap.
 
@@ -77,13 +77,15 @@ The following items were validated autonomously:
 - Balance, allowance, gas estimation, and `eth_call` preflight
 - Automated mock proposal pipeline through quote, calldata, simulation, and policy
 - Two real Sepolia swap transactions after local signing, both confirmed on-chain
+- Separate 10 USDC Gemini-path transaction signed through the browser wallet flow and confirmed on Sepolia, according to the manual acceptance run; its onchain receipt records 10 USDC to 0.000727162079958134 WETH.
 
 Recorded live swap transactions:
 
 - `1 USDC -> WETH`: [0x6e752b41545cbeae27aff159c12069da070ed4ebec5b3cfb0947cfd975b7f43f](https://sepolia.etherscan.io/tx/0x6e752b41545cbeae27aff159c12069da070ed4ebec5b3cfb0947cfd975b7f43f)
 - `2 USDC -> WETH`: [0x7202ade559fbe3481f8c8b75864a260a34822155a0a35606615aabb08619f836](https://sepolia.etherscan.io/tx/0x7202ade559fbe3481f8c8b75864a260a34822155a0a35606615aabb08619f836)
+- `10 USDC -> WETH` via Gemini fallback: [0x9eb003e30076e8d38eff2709182cf54df3db0f0309ccff787da3afac15acea03](https://sepolia.etherscan.io/tx/0x9eb003e30076e8d38eff2709182cf54df3db0f0309ccff787da3afac15acea03)
 
-Those transactions prove the protocol, calldata, RPC, and preflight path can execute on Sepolia. They do **not** prove MetaMask connection, browser popup, human confirmation, or browser cancellation behavior.
+The two locally signed transactions prove the protocol, calldata, RPC, and preflight path can execute on Sepolia. The separate Gemini-path transaction is the onchain record for the manually accepted browser-wallet run; the screenshots document the corresponding UI states. The hash itself proves the signed onchain execution, not every preceding UI state.
 
 ## Manual Validation Still Required
 
@@ -104,4 +106,4 @@ The server-side `curl` checks against Sepolia Etherscan returned HTTP `403`. Thi
 
 ## Review Process
 
-All AI-assisted code was reviewed and tested during development. Automated validation currently includes TypeScript checking, Prettier formatting, lint checks, 98 Vitest tests, and a production build. The final human MetaMask acceptance run remains the authoritative test for the browser-wallet UX.
+All AI-assisted code was reviewed and tested during development. Automated validation currently includes TypeScript checking, Prettier formatting, lint checks, 98 Vitest tests, and a production build. The final human MetaMask acceptance run remains the authoritative test for the browser-wallet UX. Runtime Gemini fallback behavior was exercised manually from the user browser because the server IP is not supported by the Gemini API.
