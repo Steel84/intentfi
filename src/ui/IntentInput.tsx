@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SwapIntent, ParsedIntentResult } from '../types';
+import { SwapIntent, ParsedIntentResult, ParserSource } from '../types';
 import { validateSwapIntent, percentToBps, tryFallbackParse, parseIntent } from '../intent/parser';
 import { UnsupportedConditionsGate } from './UnsupportedConditionsGate';
 import { AppState } from './App';
@@ -24,6 +24,7 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingGate, setPendingGate] = useState<PendingGate | null>(null);
+  const [parserSource, setParserSource] = useState<ParserSource | null>(null);
 
   // Form fields
   const [formTokenIn, setFormTokenIn] = useState('USDC');
@@ -47,12 +48,14 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
   const handleAnalyze = async () => {
     if (!input.trim()) return;
     setPendingGate(null);
+    setParserSource(null);
     setLoading(true);
 
     // 1. Try deterministic fallback first (no network, instant)
     const fallback = tryFallbackParse(input);
     if (fallback) {
       setLoading(false);
+      setParserSource('deterministic');
       onIntentParsed(fallback);
       return;
     }
@@ -69,6 +72,7 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
 
     const llmResult = await parseIntent(input, geminiKey);
     setLoading(false);
+    if (llmResult.success) setParserSource('gemini');
     handleResult(llmResult);
   };
 
@@ -88,6 +92,7 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
     });
 
     if (result.success) {
+      setParserSource(null);
       onIntentParsed(result.intent);
     } else {
       onError(result.error);
@@ -133,6 +138,13 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
 
       {mode === 'natural' ? (
         <>
+          {parserSource && (
+            <p className="parser-source" role="status">
+              {parserSource === 'deterministic'
+                ? 'Parsed deterministically'
+                : 'Parsed with Gemini fallback'}
+            </p>
+          )}
           <label>What would you like to do?</label>
           <div className="input-row">
             <input

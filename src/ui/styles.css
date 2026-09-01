@@ -745,6 +745,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   text-align: center;
 }
 
+.parser-source {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
 .landing-logo {
   margin: 0;
   color: var(--accent);

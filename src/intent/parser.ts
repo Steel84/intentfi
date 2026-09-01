@@ -37,6 +37,35 @@ Rules:
 // Gemini API call
 // ---------------------------------------------------------------------------
 
+const GEMINI_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    action: { type: 'string', enum: ['swap'] },
+    tokenIn: { type: 'string' },
+    tokenOut: { type: 'string' },
+    amountIn: { type: 'string' },
+    maxSlippageBps: { type: 'integer' },
+    unsupportedConditions: { type: 'array', items: { type: 'string' } },
+  },
+  required: [
+    'action',
+    'tokenIn',
+    'tokenOut',
+    'amountIn',
+    'maxSlippageBps',
+    'unsupportedConditions',
+  ],
+  propertyOrdering: [
+    'action',
+    'tokenIn',
+    'tokenOut',
+    'amountIn',
+    'maxSlippageBps',
+    'unsupportedConditions',
+  ],
+  additionalProperties: false,
+};
+
 export async function parseIntent(userInput: string, apiKey: string): Promise<ParsedIntentResult> {
   if (!userInput.trim()) return { success: false, error: 'Intent cannot be empty' };
   if (!apiKey.trim()) return { success: false, error: 'LLM API key is not configured' };
@@ -47,9 +76,12 @@ export async function parseIntent(userInput: string, apiKey: string): Promise<Pa
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      signal: controller.signal,
       body: JSON.stringify({
         contents: [
           { role: 'user', parts: [{ text: GEMINI_PROMPT + '\n\nUser message:\n' + userInput }] },
@@ -57,9 +89,11 @@ export async function parseIntent(userInput: string, apiKey: string): Promise<Pa
         generationConfig: {
           temperature: 0,
           responseMimeType: 'application/json',
+          responseJsonSchema: GEMINI_RESPONSE_SCHEMA,
         },
       }),
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       let detail = '';
@@ -88,6 +122,8 @@ export async function parseIntent(userInput: string, apiKey: string): Promise<Pa
     const parsed = JSON.parse(text);
     return validateSwapIntent(parsed);
   } catch (e: unknown) {
+    if (e instanceof DOMException && e.name === 'AbortError')
+      return { success: false, error: 'Gemini parser timed out. Try Form mode or retry.' };
     return {
       success: false,
       error: `LLM parse failed: ${e instanceof Error ? e.message : 'unknown error'}`,
@@ -102,6 +138,17 @@ export async function parseIntent(userInput: string, apiKey: string): Promise<Pa
 export function validateSwapIntent(raw: unknown): ParsedIntentResult {
   if (!raw || typeof raw !== 'object') return { success: false, error: 'Intent must be an object' };
   const candidate = raw as Record<string, unknown>;
+  const allowedKeys = new Set([
+    'action',
+    'tokenIn',
+    'tokenOut',
+    'amountIn',
+    'maxSlippageBps',
+    'unsupportedConditions',
+    'error',
+  ]);
+  const unexpectedKey = Object.keys(candidate).find((key) => !allowedKeys.has(key));
+  if (unexpectedKey) return { success: false, error: `Unexpected intent field: ${unexpectedKey}` };
   if (candidate.error) return { success: false, error: String(candidate.error) };
   if (candidate.action !== 'swap')
     return { success: false, error: `Unsupported action: ${String(candidate.action)}` };

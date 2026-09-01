@@ -123,6 +123,19 @@ describe('Hybrid parser: LLM result through validateSwapIntent', () => {
     }
   });
 
+  it('rejects unexpected fields from a malformed LLM response', () => {
+    const r = validateSwapIntent({
+      action: 'swap',
+      tokenIn: 'USDC',
+      tokenOut: 'ETH',
+      amountIn: '10',
+      maxSlippageBps: 50,
+      calldata: '0xdeadbeef',
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toContain('Unexpected intent field');
+  });
+
   it('validates LLM output with same strictness as fallback (same-token rejection)', () => {
     const r = validateSwapIntent({
       action: 'swap',

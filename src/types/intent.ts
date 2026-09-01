@@ -19,3 +19,5 @@ export type Intent = SwapIntent;
 export type ParsedIntentResult =
   | { success: true; intent: Intent; unsupportedConditions?: string[] }
   | { success: false; error: string };
+
+export type ParserSource = 'deterministic' | 'gemini';
