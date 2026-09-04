@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAccount, useBalance } from 'wagmi';
+import { useAccount, useBalance, useDisconnect } from 'wagmi';
 import { ConnectKitButton } from 'connectkit';
 import { IntentInput } from './IntentInput';
 import { IntentDisplay } from './IntentDisplay';
@@ -31,6 +31,7 @@ export type AppState =
 
 export default function App() {
   const { address, isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
   const { data: nativeBalance } = useBalance({ address });
   const { data: usdcBalance } = useBalance({
     address,
@@ -48,7 +49,29 @@ export default function App() {
       {isConnected && (
         <header className="header">
           <h1 className="logo">IntentFi</h1>
-          <div className="wallet-area">
+          <div className="wallet-area" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {address && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)', padding: '0.25rem 0.6rem', borderRadius: '20px' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#e4e4e7' }} title={address}>
+                  {address.slice(0, 6)}...{address.slice(-4)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => disconnect()}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(239, 68, 68, 0.5)',
+                    color: '#f87171',
+                    borderRadius: '12px',
+                    padding: '0.15rem 0.5rem',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Disconnect
+                </button>
+              </div>
+            )}
             <div className="wallet-balances" aria-label="Wallet balances">
               {nativeBalance && (
                 <span className="balance">
