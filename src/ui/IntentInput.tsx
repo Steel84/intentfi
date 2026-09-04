@@ -147,14 +147,27 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
           )}
           <label>What would you like to do?</label>
           <div className="input-row">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Swap 100 USDC to ETH, max 0.5% slippage"
-              disabled={disabled || loading}
-              onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
-            />
+            <div className="input-wrapper">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Swap 100 USDC to ETH, max 0.5% slippage"
+                disabled={disabled || loading}
+                onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+              />
+              {input && !disabled && !loading && (
+                <button
+                  type="button"
+                  className="btn-input-clear"
+                  onClick={() => setInput('')}
+                  aria-label="Clear input"
+                  title="Clear"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
             <button onClick={handleAnalyze} disabled={disabled || loading || !input.trim()}>
               {loading ? 'Parsing...' : 'Analyze'}
             </button>

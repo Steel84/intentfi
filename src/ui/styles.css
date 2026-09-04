@@ -806,3 +806,38 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   color: var(--text-muted); cursor: pointer;
 }
 .btn-gate-cancel:hover { border-color: var(--danger); color: var(--danger); }
+
+
+.input-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrapper input {
+  width: 100%;
+  padding-right: 2.25rem;
+}
+
+.btn-input-clear {
+  position: absolute;
+  right: 0.75rem;
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.25rem !important;
+  border-radius: 50% !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.btn-input-clear:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08) !important;
+}

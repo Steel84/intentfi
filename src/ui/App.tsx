@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, useBalance, useDisconnect } from 'wagmi';
 import { ConnectKitButton } from 'connectkit';
 import { IntentInput } from './IntentInput';
@@ -43,6 +43,10 @@ export default function App() {
   });
   const flow = useSwapFlow();
   const [inputError, setInputError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setInputError(null);
+  }, [address, isConnected]);
 
   return (
     <div className="app">
@@ -125,6 +129,7 @@ export default function App() {
             />
             <PolicySettings config={flow.policyConfig} onSave={flow.updatePolicyConfig} />
             <IntentInput
+              key={address ?? 'disconnected'}
               onIntentParsed={(intent) => {
                 setInputError(null);
                 flow.runFlow(intent);

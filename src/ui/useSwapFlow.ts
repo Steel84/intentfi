@@ -70,7 +70,19 @@ export function useSwapFlow() {
   useEffect(() => {
     runId.current += 1;
     actionInFlight.current = false;
-    setFlowState((prev) => ({ ...prev, txHistory: loadHistory(address) }));
+    setFlowState((prev) => ({
+      ...prev,
+      state: 'idle',
+      intent: null,
+      quote: null,
+      policyResult: null,
+      simulation: null,
+      txHash: null,
+      error: null,
+      needsApproval: false,
+      approving: false,
+      txHistory: loadHistory(address),
+    }));
   }, [address, chainId]);
 
   const reset = useCallback(() => {
@@ -376,8 +388,31 @@ function formatBps(value?: string): string {
 }
 
 function formatPolicyFailures(result: PolicyResult): string {
-  return result.checks
-    .filter((check) => !check.passed)
+  const failedChecks = result.checks.filter((check) => !check.passed);
+
+  // If balance check failed, surface only the balance/simulation failure and suppress redundant allowance / simulation echoes
+  const balanceFailed = failedChecks.find((c) => c.name === 'Balance Sufficient');
+  if (balanceFailed) {
+    const simCheck = failedChecks.find((c) => c.name === 'Simulation Passed');
+    if (simCheck && simCheck.reason && simCheck.reason.toLowerCase().includes('insufficient')) {
+      return simCheck.reason;
+    }
+    return balanceFailed.reason || 'Insufficient token balance for this swap';
+  }
+
+  // Filter out redundant checks when applicable
+  const filtered = failedChecks.filter((check) => {
+    // If allowance failed and simulation failed solely with "Token approval required", omit generic simulation echo
+    if (check.name === 'Simulation Passed') {
+      const hasAllowanceFail = failedChecks.some((c) => c.name === 'Token Allowance Set');
+      if (hasAllowanceFail && check.reason && check.reason.toLowerCase().includes('approval')) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  return filtered
     .map((check) => {
       switch (check.name) {
         case 'Slippage Within Limit':
@@ -385,7 +420,7 @@ function formatPolicyFailures(result: PolicyResult): string {
         case 'Price Impact Within Limit':
           return `Price impact exceeds limit (${formatBps(check.actual)}, max ${formatBps(check.limit)})`;
         case 'Balance Sufficient':
-          return 'Insufficient token balance for this swap';
+          return check.reason || 'Insufficient token balance for this swap';
         case 'Token Allowance Set':
           return 'Token approval is required before this swap';
         case 'Quote Fresh':

@@ -1,7 +1,7 @@
 import { SimulationResult, TransactionRequest, SwapIntent } from '../types';
 import { getHealthyClient } from '../utils/rpc';
 import { uniswapAdapter } from '../protocol/uniswap-v3';
-import { toBaseUnits, getTokenDecimals } from '../utils/tokens';
+import { toBaseUnits, fromBaseUnits, getTokenDecimals } from '../utils/tokens';
 
 /**
  * Simulation / Preflight Validation
@@ -34,7 +34,7 @@ export async function simulateTransaction(
         success: false,
         balanceCheck: false,
         allowanceCheck: false,
-        error: `Insufficient ${intent.tokenIn} balance. Have: ${balance.toString()}, need: ${requiredAmount.toString()}`,
+        error: `Insufficient ${intent.tokenIn} balance. Have: ${fromBaseUnits(balance, decimalsIn)} ${intent.tokenIn}, need: ${intent.amountIn} ${intent.tokenIn}`,
       };
     }
   } catch (e: any) {
