@@ -161,9 +161,9 @@ export default function App() {
             )}
 
             {(inputError || flow.error) && (
-              <div className="error-box">
-                <strong>Error:</strong> {inputError || flow.error}
-                {flow.needsApproval && (
+              !inputError && flow.needsApproval ? (
+                <div className="action-box">
+                  <strong>Action required:</strong> {flow.error}
                   <button
                     className="btn-approve"
                     onClick={flow.approveToken}
@@ -171,13 +171,17 @@ export default function App() {
                   >
                     {flow.approving ? 'Approving...' : `Approve ${flow.intent?.tokenIn}`}
                   </button>
-                )}
-                {flow.state === 'error' && !flow.needsApproval && (
-                  <button className="btn-retry" onClick={flow.retry}>
-                    Try Again
-                  </button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="error-box">
+                  <strong>Error:</strong> {inputError || flow.error}
+                  {flow.state === 'error' && (
+                    <button className="btn-retry" onClick={flow.retry}>
+                      Try Again
+                    </button>
+                  )}
+                </div>
+              )
             )}
 
             {flow.intent && <IntentDisplay intent={flow.intent} />}

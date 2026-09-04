@@ -19,6 +19,13 @@ export default defineConfig({
         secure: false,
         agent: proxyAgent,
       },
+      '/api/mistral': {
+        target: 'https://api.mistral.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/mistral/, ''),
+        secure: false,
+        agent: proxyAgent,
+      },
     },
   },
 });

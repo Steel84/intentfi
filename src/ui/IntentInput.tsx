@@ -61,16 +61,18 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
     }
 
     // 2. Fallback returned null: try LLM if key is available
+    const mistralKey = import.meta.env.VITE_MISTRAL_API_KEY;
     const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!geminiKey) {
+    const providerKey = mistralKey || geminiKey;
+    if (!providerKey) {
       setLoading(false);
       onError(
-        'Could not parse intent. Try the Form input, or configure a Gemini API key for advanced parsing.',
+        'Could not parse intent. Try the Form input, or configure an LLM API key for advanced parsing.',
       );
       return;
     }
 
-    const llmResult = await parseIntent(input, geminiKey);
+    const llmResult = await parseIntent(input);
     setLoading(false);
     if (llmResult.success) setParserSource('gemini');
     handleResult(llmResult);
@@ -142,7 +144,7 @@ export function IntentInput({ onIntentParsed, onError, disabled }: Props) {
             <p className="parser-source" role="status">
               {parserSource === 'deterministic'
                 ? 'Parsed deterministically'
-                : 'Parsed with Gemini fallback'}
+                : 'Parsed with AI fallback'}
             </p>
           )}
           <label>What would you like to do?</label>

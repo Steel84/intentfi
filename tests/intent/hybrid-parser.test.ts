@@ -210,7 +210,7 @@ describe('Full chain & Mocked Gemini fallback integration', () => {
     }) as unknown as typeof fetch;
 
     try {
-      const res = await parseIntent(input, 'test-key');
+      const res = await parseIntent(input, 'test-key', 'gemini');
       expect(res.success).toBe(true);
       if (res.success) {
         expect(res.intent.action).toBe('swap');
@@ -267,7 +267,7 @@ describe('Full chain & Mocked Gemini fallback integration', () => {
   });
 
   it('D. Missing Gemini API key produces clear error and fails closed', async () => {
-    const res = await parseIntent('Convert ten USDC into ETH', '');
+    const res = await parseIntent('Convert ten USDC into ETH', '', 'gemini');
     expect(res.success).toBe(false);
     if (!res.success) {
       expect(res.error).toBe('LLM API key is not configured');

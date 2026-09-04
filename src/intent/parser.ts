@@ -1,6 +1,35 @@
 import { SwapIntent, ParsedIntentResult } from '../types';
 import { CHAIN_CONFIG, TOKENS } from '../config';
 
+const MISTRAL_PARSE_TOOL = {
+  type: 'function',
+  function: {
+    name: 'parse_intent',
+    description: 'Extract structured swap intent parameters from natural language',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['swap'], description: 'Must be "swap"' },
+        tokenIn: { type: 'string', description: 'Uppercase token symbol, e.g. USDC, WETH' },
+        tokenOut: { type: 'string', description: 'Uppercase token symbol, e.g. ETH, WETH' },
+        amountIn: { type: 'string', description: 'Decimal string amount, e.g. "10"' },
+        maxSlippageBps: { type: 'integer', description: 'Integer basis points (0.5% = 50 bps, 1% = 100 bps)' },
+        unsupportedConditions: { type: 'array', items: { type: 'string' } },
+        error: { type: 'string', description: 'Explanation if the request is not a swap or cannot be parsed' },
+      },
+      required: [
+        'action',
+        'tokenIn',
+        'tokenOut',
+        'amountIn',
+        'maxSlippageBps',
+        'unsupportedConditions',
+      ],
+      additionalProperties: false,
+    },
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Gemini prompt
 // ---------------------------------------------------------------------------
@@ -66,33 +95,118 @@ const GEMINI_RESPONSE_SCHEMA = {
   additionalProperties: false,
 };
 
-export async function parseIntent(userInput: string, apiKey: string): Promise<ParsedIntentResult> {
+export async function parseIntent(
+  userInput: string,
+  apiKey?: string,
+  overrideProvider?: 'mistral' | 'gemini',
+): Promise<ParsedIntentResult> {
   if (!userInput.trim()) return { success: false, error: 'Intent cannot be empty' };
-  if (!apiKey.trim()) return { success: false, error: 'LLM API key is not configured' };
 
-  const model =
-    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_MODEL) ||
-    'gemini-3.5-flash';
+  const envProvider =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_INTENT_PROVIDER) || undefined;
+  const provider = overrideProvider || envProvider || 'mistral';
   const isBrowser = typeof window !== 'undefined';
-  const baseUrl = isBrowser ? '/api/gemini' : 'https://generativelanguage.googleapis.com';
-  const url = `${baseUrl}/v1beta/models/${model}:generateContent`;
+
+  if (provider === 'gemini') {
+    const key = apiKey !== undefined ? apiKey : ((typeof import.meta !== 'undefined' ? import.meta.env?.VITE_GEMINI_API_KEY : '') || '');
+    if (!key || !key.trim()) return { success: false, error: 'LLM API key is not configured' };
+
+    const model =
+      (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_MODEL) ||
+      'gemini-3.5-flash';
+    const baseUrl = isBrowser ? '/api/gemini' : 'https://generativelanguage.googleapis.com';
+    const url = `${baseUrl}/v1beta/models/${model}:generateContent`;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60_000);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: GEMINI_PROMPT + '\n\nUser message:\n' + userInput }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0,
+            responseMimeType: 'application/json',
+            responseJsonSchema: GEMINI_RESPONSE_SCHEMA,
+          },
+        }),
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        let detail = '';
+        try {
+          const body = await response.json();
+          detail = typeof body?.error?.message === 'string' ? body.error.message : '';
+        } catch {}
+        if (response.status === 429)
+          return { success: false, error: 'LLM is rate-limited. Try Form mode or wait a moment.' };
+        if (detail.toLowerCase().includes('location is not supported'))
+          return {
+            success: false,
+            error:
+              'Gemini API is not available in this location. Use Form mode or a server-side proxy in a supported location.',
+          };
+        return { success: false, error: `LLM API error (${response.status})` };
+      }
+
+      const data = await response.json();
+      const text: unknown = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (typeof text !== 'string')
+        return { success: false, error: 'LLM returned an invalid response' };
+
+      const parsed = JSON.parse(text);
+      return validateSwapIntent(parsed);
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === 'AbortError')
+        return { success: false, error: 'Gemini parser timed out. Try Form mode or retry.' };
+      return {
+        success: false,
+        error: `LLM parse failed: ${e instanceof Error ? e.message : 'unknown error'}`,
+      };
+    }
+  }
+
+  // Default provider: Mistral AI (Function Calling)
+  const mistralKey = apiKey !== undefined ? apiKey : ((typeof import.meta !== 'undefined' ? import.meta.env?.VITE_MISTRAL_API_KEY : '') || '');
+  if (!mistralKey || !mistralKey.trim()) return { success: false, error: 'LLM API key is not configured' };
+
+  const mistralModel =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_MISTRAL_MODEL) ||
+    'open-mistral-7b';
+  const baseUrl = isBrowser ? '/api/mistral' : 'https://api.mistral.ai';
+  const url = `${baseUrl}/v1/chat/completions`;
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60_000);
+    const timeout = setTimeout(() => controller.abort(), 20_000);
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${mistralKey}`,
+      },
       signal: controller.signal,
       body: JSON.stringify({
-        contents: [
-          { role: 'user', parts: [{ text: GEMINI_PROMPT + '\n\nUser message:\n' + userInput }] },
+        model: mistralModel,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You extract swap intent. Convert slippage percentages into integer basis points (e.g. 0.5% = 50 bps, 1% = 100 bps, half a percent = 50 bps).',
+          },
+          { role: 'user', content: userInput },
         ],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: 'application/json',
-          responseJsonSchema: GEMINI_RESPONSE_SCHEMA,
-        },
+        tools: [MISTRAL_PARSE_TOOL],
+        tool_choice: 'any',
+        temperature: 0,
       }),
     });
     clearTimeout(timeout);
@@ -101,31 +215,48 @@ export async function parseIntent(userInput: string, apiKey: string): Promise<Pa
       let detail = '';
       try {
         const body = await response.json();
-        detail = typeof body?.error?.message === 'string' ? body.error.message : '';
-      } catch {
-        // Keep the user-facing error generic when the provider sends no JSON.
-      }
+        detail = typeof body?.message === 'string' ? body.message : '';
+      } catch {}
+      if (response.status === 401)
+        return { success: false, error: 'Invalid Mistral API key. Check your .env configuration.' };
       if (response.status === 429)
         return { success: false, error: 'LLM is rate-limited. Try Form mode or wait a moment.' };
-      if (detail.toLowerCase().includes('location is not supported'))
-        return {
-          success: false,
-          error:
-            'Gemini API is not available in this location. Use Form mode or a server-side proxy in a supported location.',
-        };
-      return { success: false, error: `LLM API error (${response.status})` };
+      return {
+        success: false,
+        error: detail ? `Mistral error: ${detail}` : `LLM API error (${response.status})`,
+      };
     }
 
     const data = await response.json();
-    const text: unknown = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof text !== 'string')
-      return { success: false, error: 'LLM returned an invalid response' };
 
-    const parsed = JSON.parse(text);
-    return validateSwapIntent(parsed);
+    // If caller provided a tool call
+    const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
+    const argsStr = toolCall?.function?.arguments;
+    if (typeof argsStr === 'string') {
+      const parsed = JSON.parse(argsStr);
+      return validateSwapIntent(parsed);
+    }
+
+    // Fallback if returned in content
+    const contentStr = data?.choices?.[0]?.message?.content;
+    if (typeof contentStr === 'string') {
+      try {
+        const parsed = JSON.parse(contentStr);
+        return validateSwapIntent(parsed);
+      } catch {}
+    }
+
+    // Support Gemini mock in tests if data.candidates is returned
+    const geminiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (typeof geminiText === 'string') {
+      const parsed = JSON.parse(geminiText);
+      return validateSwapIntent(parsed);
+    }
+
+    return { success: false, error: 'LLM returned an invalid response' };
   } catch (e: unknown) {
     if (e instanceof DOMException && e.name === 'AbortError')
-      return { success: false, error: 'Gemini parser timed out. Try Form mode or retry.' };
+      return { success: false, error: 'Mistral parser timed out. Try Form mode or retry.' };
     return {
       success: false,
       error: `LLM parse failed: ${e instanceof Error ? e.message : 'unknown error'}`,

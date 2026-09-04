@@ -19,7 +19,7 @@ export function RpcStatus() {
       <span className="rpc-dot" />
       <span className="rpc-text">
         {status.connected
-          ? `RPC${status.usingFallback ? ' (fallback)' : ''} \u2022 Block ${status.blockNumber?.toString()}`
+          ? `RPC${status.usingFallback ? ' (fallback)' : ''} • Block ${status.blockNumber?.toString()}`
           : 'RPC disconnected'}
       </span>
     </div>
