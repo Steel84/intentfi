@@ -72,12 +72,14 @@ export async function parseIntent(userInput: string, apiKey: string): Promise<Pa
 
   const model =
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_MODEL) ||
-    'gemini-3.6-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    'gemini-3.5-flash';
+  const isBrowser = typeof window !== 'undefined';
+  const baseUrl = isBrowser ? '/api/gemini' : 'https://generativelanguage.googleapis.com';
+  const url = `${baseUrl}/v1beta/models/${model}:generateContent`;
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const timeout = setTimeout(() => controller.abort(), 60_000);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },

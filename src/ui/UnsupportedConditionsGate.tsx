@@ -14,7 +14,7 @@ export function UnsupportedConditionsGate({ intent, conditions, onContinue, onCa
       <p className="gate-intro">
         We understood your swap (
         <strong>
-          {intent.amountIn} {intent.tokenIn} \u2192 {intent.tokenOut}
+          {intent.amountIn} {intent.tokenIn} → {intent.tokenOut}
         </strong>
         ), but the following conditions are outside what IntentFi can enforce on-chain:
       </p>

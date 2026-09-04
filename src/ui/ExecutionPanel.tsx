@@ -44,7 +44,7 @@ export function ExecutionPanel({
           <strong>
             {intent.amountIn} {intent.tokenIn}
           </strong>
-          <span> \u2192 </span>
+          <span> → </span>
           <strong>{quote.expectedOutput}</strong>
         </p>
         <p>Max slippage: {intent.maxSlippageBps / 100}%</p>

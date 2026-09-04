@@ -14,7 +14,7 @@ export function TxHistory({ entries }: Props) {
           <div key={entry.hash} className="history-item">
             <div className="history-detail">
               <span className="history-action">
-                {entry.intent.amountIn} {entry.intent.tokenIn} \u2192 {entry.intent.tokenOut}
+                {entry.intent.amountIn} {entry.intent.tokenIn} → {entry.intent.tokenOut}
               </span>
               <span className="history-time">{new Date(entry.timestamp).toLocaleTimeString()}</span>
             </div>

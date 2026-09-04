@@ -46,10 +46,10 @@ export default function App() {
 
   return (
     <div className="app">
-      {isConnected && (
+      {isConnected && <>
         <header className="header">
           <h1 className="logo">IntentFi</h1>
-          <div className="wallet-area" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="wallet-area">
             {address && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)', padding: '0.25rem 0.6rem', borderRadius: '20px' }}>
                 <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#e4e4e7' }} title={address}>
@@ -72,22 +72,24 @@ export default function App() {
                 </button>
               </div>
             )}
-            <div className="wallet-balances" aria-label="Wallet balances">
-              {nativeBalance && (
-                <span className="balance">
-                  {parseFloat(nativeBalance.formatted).toFixed(4)} {nativeBalance.symbol}
-                </span>
-              )}
-              {usdcBalance && (
-                <span className="balance">{parseFloat(usdcBalance.formatted).toFixed(2)} USDC</span>
-              )}
-              {wethBalance && (
-                <span className="balance">{parseFloat(wethBalance.formatted).toFixed(6)} WETH</span>
-              )}
-            </div>
           </div>
         </header>
-      )}
+        {isConnected && (
+          <div className="token-balances-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', margin: '-1rem 0 2rem 0' }}>
+            {nativeBalance && (
+              <span className="balance">
+                {parseFloat(nativeBalance.formatted).toFixed(4)} {nativeBalance.symbol}
+              </span>
+            )}
+            {usdcBalance && (
+              <span className="balance">{parseFloat(usdcBalance.formatted).toFixed(2)} USDC</span>
+            )}
+            {wethBalance && (
+              <span className="balance">{parseFloat(wethBalance.formatted).toFixed(6)} WETH</span>
+            )}
+          </div>
+        )}
+      </>}
 
       <main className="main">
         {!isConnected ? (
@@ -197,7 +199,7 @@ export default function App() {
 
             {flow.state === 'confirmed' && flow.txHash && (
               <div className="success-box">
-                <h3>Transaction Confirmed \u2713</h3>
+                <h3>Transaction Confirmed ✓</h3>
                 <p className="tx-hash">{flow.txHash}</p>
                 <a
                   href={`${CHAIN_CONFIG.explorer}/tx/${flow.txHash}`}
@@ -205,7 +207,7 @@ export default function App() {
                   rel="noopener noreferrer"
                   className="explorer-link"
                 >
-                  View on Explorer \u2192
+                  View on Explorer →
                 </a>
                 <button className="btn-new-swap" onClick={flow.reset}>
                   New Swap
@@ -222,7 +224,7 @@ export default function App() {
 
       <footer className="footer">
         <RpcStatus />
-        <span>Sepolia Testnet \u2022 Not real funds</span>
+        <span>Sepolia Testnet • Not real funds</span>
         <span>v0.1</span>
       </footer>
     </div>
