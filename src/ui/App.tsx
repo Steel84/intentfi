@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useBalance, useDisconnect } from 'wagmi';
+import { getAddress } from 'viem';
 import { ConnectKitButton } from 'connectkit';
 import { IntentInput } from './IntentInput';
 import { IntentDisplay } from './IntentDisplay';
@@ -10,7 +11,6 @@ import { ExecutionPanel } from './ExecutionPanel';
 import { TxHistory } from './TxHistory';
 import { RpcStatus } from './RpcStatus';
 import { PolicySettings } from './PolicySettings';
-import { FlowProgress } from './FlowProgress';
 import { AgentStatus } from './AgentStatus';
 import { useSwapFlow } from './useSwapFlow';
 import { CHAIN_CONFIG, TOKENS } from '../config';
@@ -29,20 +29,95 @@ export type AppState =
   | 'confirmed'
   | 'error';
 
+function formatBalanceDisplay(formatted: string | undefined, maxDecimals: number): string {
+  if (!formatted) return '0';
+  const val = parseFloat(formatted);
+  if (!Number.isFinite(val) || val === 0) return '0';
+  const fixed = val.toFixed(maxDecimals);
+  return fixed.replace(/(\.\d*?[1-9])0+$|\.0*$/, '$1');
+}
+
 export default function App() {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
-  const { data: nativeBalance } = useBalance({ address });
-  const { data: usdcBalance } = useBalance({
-    address,
-    token: TOKENS.USDC.address as `0x${string}`,
+
+  const safeAccountAddress = (() => {
+    if (!address) return undefined;
+    try {
+      return getAddress(address);
+    } catch {
+      return undefined;
+    }
+  })();
+
+  const {
+    data: nativeBalance,
+    isLoading: nativeLoading,
+    isError: nativeError,
+    error: nativeErrObj,
+    refetch: refetchNative
+  } = useBalance({
+    address: safeAccountAddress,
+    chainId: CHAIN_CONFIG.chainId,
+    query: { enabled: Boolean(safeAccountAddress) }
   });
-  const { data: wethBalance } = useBalance({
-    address,
-    token: TOKENS.WETH.address as `0x${string}`,
+
+  const {
+    data: usdcBalance,
+    isLoading: usdcLoading,
+    isError: usdcError,
+    error: usdcErrObj,
+    refetch: refetchUsdc
+  } = useBalance({
+    address: safeAccountAddress,
+    token: getAddress(TOKENS.USDC.address),
+    chainId: CHAIN_CONFIG.chainId,
+    query: { enabled: Boolean(safeAccountAddress) }
   });
+
+  const {
+    data: wethBalance,
+    isLoading: wethLoading,
+    isError: wethError,
+    error: wethErrObj,
+    refetch: refetchWeth
+  } = useBalance({
+    address: safeAccountAddress,
+    token: getAddress(TOKENS.WETH.address),
+    chainId: CHAIN_CONFIG.chainId,
+    query: { enabled: Boolean(safeAccountAddress) }
+  });
+
   const flow = useSwapFlow();
+
+  useEffect(() => {
+    if (!safeAccountAddress) return;
+    const refreshBalances = () => {
+      void refetchNative();
+      void refetchUsdc();
+      void refetchWeth();
+    };
+    const interval = window.setInterval(refreshBalances, 20_000);
+    return () => window.clearInterval(interval);
+  }, [safeAccountAddress, flow.balancesVersion, refetchNative, refetchUsdc, refetchWeth]);
+
+  useEffect(() => {
+    if (nativeError && nativeErrObj) console.warn('[Balance:ETH error]', nativeErrObj);
+    if (wethError && wethErrObj) console.warn('[Balance:WETH error]', wethErrObj);
+    if (usdcError && usdcErrObj) console.warn('[Balance:USDC error]', usdcErrObj);
+  }, [nativeError, nativeErrObj, wethError, wethErrObj, usdcError, usdcErrObj]);
+
   const [inputError, setInputError] = useState<string | null>(null);
+  const [showQuoteLoading, setShowQuoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (flow.state !== 'quoting') {
+      setShowQuoteLoading(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setShowQuoteLoading(true), 250);
+    return () => window.clearTimeout(timer);
+  }, [flow.state]);
 
   useEffect(() => {
     setInputError(null);
@@ -55,22 +130,14 @@ export default function App() {
           <h1 className="logo">IntentFi</h1>
           <div className="wallet-area">
             {address && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)', padding: '0.25rem 0.6rem', borderRadius: '20px' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#e4e4e7' }} title={address}>
+              <div className="wallet-account-badge">
+                <span className="wallet-pill" title={address}>
                   {address.slice(0, 6)}...{address.slice(-4)}
                 </span>
                 <button
                   type="button"
+                  className="btn-disconnect"
                   onClick={() => disconnect()}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid rgba(239, 68, 68, 0.5)',
-                    color: '#f87171',
-                    borderRadius: '12px',
-                    padding: '0.15rem 0.5rem',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer'
-                  }}
                 >
                   Disconnect
                 </button>
@@ -78,19 +145,17 @@ export default function App() {
             )}
           </div>
         </header>
-        {isConnected && (
-          <div className="token-balances-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', margin: '-1rem 0 2rem 0' }}>
-            {nativeBalance && (
-              <span className="balance">
-                {parseFloat(nativeBalance.formatted).toFixed(4)} {nativeBalance.symbol}
-              </span>
-            )}
-            {usdcBalance && (
-              <span className="balance">{parseFloat(usdcBalance.formatted).toFixed(2)} USDC</span>
-            )}
-            {wethBalance && (
-              <span className="balance">{parseFloat(wethBalance.formatted).toFixed(6)} WETH</span>
-            )}
+        {address && (
+          <div className="token-balances-bar" aria-label="Wallet balances">
+            <span className="balance">
+              ETH {nativeLoading ? '…' : formatBalanceDisplay(nativeBalance?.formatted, 4)}
+            </span>
+            <span className="balance">
+              WETH {wethLoading ? '…' : formatBalanceDisplay(wethBalance?.formatted, 6)}
+            </span>
+            <span className="balance">
+              USDC {usdcLoading ? '…' : formatBalanceDisplay(usdcBalance?.formatted, 2)}
+            </span>
           </div>
         )}
       </>}
@@ -120,12 +185,12 @@ export default function App() {
           </div>
         ) : (
           <div className="flow">
-            <FlowProgress state={flow.state} />
             <AgentStatus
               state={flow.state}
               quote={flow.quote}
               policy={flow.policyResult}
               simulation={flow.simulation}
+              needsApproval={flow.needsApproval}
             />
             <PolicySettings config={flow.policyConfig} onSave={flow.updatePolicyConfig} />
             <IntentInput
@@ -139,7 +204,7 @@ export default function App() {
               disabled={flow.state === 'executing' || flow.approving}
             />
 
-            {flow.state === 'quoting' && (
+            {flow.state === 'quoting' && showQuoteLoading && (
               <div className="card loading-card">
                 <div className="spinner" />
                 <p>Fetching live quote from Uniswap V3...</p>
@@ -160,7 +225,7 @@ export default function App() {
               </div>
             )}
 
-            {(inputError || flow.error) && (
+            {(inputError || flow.error) && flow.state !== 'confirmed' && (
               !inputError && flow.needsApproval ? (
                 <div className="action-box">
                   <strong>Action required:</strong> {flow.error}
@@ -184,28 +249,7 @@ export default function App() {
               )
             )}
 
-            {flow.intent && <IntentDisplay intent={flow.intent} />}
-            {flow.quote && <QuoteDisplay quote={flow.quote} onRefresh={flow.refreshQuote} />}
-            {flow.simulation && <SimulationDisplay result={flow.simulation} />}
-            {flow.policyResult && <PolicyDisplay result={flow.policyResult} />}
-
-            {flow.state === 'ready' && flow.intent && flow.quote && (
-              <ExecutionPanel
-                intent={flow.intent}
-                quote={flow.quote}
-                onConfirmClick={flow.executeTransaction}
-                onCancelClick={flow.reset}
-                onRefreshQuote={flow.refreshQuote}
-              />
-            )}
-
-            {flow.state === 'executing' && (
-              <div className="card loading-card">
-                <div className="spinner" />
-                <p>Waiting for wallet signature and confirmation...</p>
-              </div>
-            )}
-
+                        {/* When confirmed: show Confirmed box prominently at the top */}
             {flow.state === 'confirmed' && flow.txHash && (
               <div className="success-box">
                 <h3>Transaction Confirmed ✓</h3>
@@ -221,6 +265,56 @@ export default function App() {
                 <button className="btn-new-swap" onClick={flow.reset}>
                   New Swap
                 </button>
+              </div>
+            )}
+
+            {/* Always display transaction cards: during preparation and as calm audit trail after confirmation */}
+            {flow.intent && <IntentDisplay intent={flow.intent} />}
+            {flow.quote && (
+              <QuoteDisplay
+                quote={flow.quote}
+                onRefresh={flow.state !== 'confirmed' ? flow.refreshQuote : undefined}
+                isConfirmed={flow.state === 'confirmed'}
+              />
+            )}
+            {flow.simulation && (
+              <SimulationDisplay
+                result={flow.simulation}
+                needsApproval={flow.needsApproval}
+                isQuoteExpired={flow.state !== 'confirmed' && (flow.isQuoteExpired || Boolean(flow.quote && flow.quote.expiresAt <= Date.now()))}
+                isConfirmed={flow.state === 'confirmed'}
+              />
+            )}
+            {flow.policyResult && (
+              <PolicyDisplay
+                result={flow.policyResult}
+                needsApproval={flow.needsApproval}
+                isQuoteExpired={flow.state !== 'confirmed' && (flow.isQuoteExpired || Boolean(flow.quote && flow.quote.expiresAt <= Date.now()))}
+                isConfirmed={flow.state === 'confirmed'}
+              />
+            )}
+
+            {flow.state !== 'confirmed' &&
+              (flow.state === 'ready' ||
+                (flow.intent &&
+                  flow.quote &&
+                  flow.quote.expiresAt <= Date.now() &&
+                  flow.simulation?.success)) &&
+              flow.intent &&
+              flow.quote && (
+                <ExecutionPanel
+                  intent={flow.intent}
+                  quote={flow.quote}
+                  onConfirmClick={flow.executeTransaction}
+                  onCancelClick={flow.reset}
+                  onRefreshQuote={flow.refreshQuote}
+                />
+              )}
+
+            {flow.state === 'executing' && (
+              <div className="card loading-card">
+                <div className="spinner" />
+                <p>Waiting for wallet signature and confirmation...</p>
               </div>
             )}
 

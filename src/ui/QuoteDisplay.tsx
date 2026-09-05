@@ -1,25 +1,31 @@
 import { useEffect, useState } from 'react';
 import { Quote } from '../types';
 
-type Props = { quote: Quote; onRefresh?: () => void };
+type Props = {
+  quote: Quote;
+  onRefresh?: () => void;
+  isConfirmed?: boolean;
+};
 
-export function QuoteDisplay({ quote, onRefresh }: Props) {
+export function QuoteDisplay({ quote, onRefresh, isConfirmed = false }: Props) {
   const [remaining, setRemaining] = useState(() => Math.max(0, quote.expiresAt - Date.now()));
 
   useEffect(() => {
+    if (isConfirmed) return;
     const update = () => setRemaining(Math.max(0, quote.expiresAt - Date.now()));
     update();
     const timer = window.setInterval(update, 1000);
     return () => window.clearInterval(timer);
-  }, [quote.expiresAt]);
+  }, [quote.expiresAt, isConfirmed]);
 
-  const expired = remaining === 0;
+  const expired = !isConfirmed && remaining === 0;
+
   return (
     <div className={`card quote-display ${expired ? 'quote-expired' : ''}`}>
       <div className="card-heading">
         <h3>Live Quote</h3>
         <span className={`quote-timer ${expired ? 'expired' : ''}`}>
-          {expired ? 'Expired' : `Valid for ${Math.ceil(remaining / 1000)}s`}
+          {isConfirmed ? 'Executed' : expired ? 'Expired' : `Valid for ${Math.ceil(remaining / 1000)}s`}
         </span>
       </div>
       <div className="intent-fields">

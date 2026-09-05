@@ -39,10 +39,32 @@ export type FlowState = {
   approving: boolean;
   txHistory: TxHistoryEntry[];
   policyConfig: PolicyConfig;
+  balancesVersion: number;
+  isQuoteExpired: boolean;
 };
 
 const HISTORY_LIMIT = 10;
 const HISTORY_PREFIX = 'intentfi-history:';
+
+export function invalidateExpiredQuoteState(state: FlowState, now = Date.now()): FlowState {
+  if (!state.quote || state.quote.expiresAt > now) return { ...state, isQuoteExpired: false };
+  if (state.state === 'executing' || state.state === 'confirmed') {
+    return { ...state, isQuoteExpired: false };
+  }
+  if (state.approving) {
+    return { ...state, policyResult: null, simulation: null, isQuoteExpired: true };
+  }
+  return {
+    ...state,
+    state: 'error',
+    policyResult: null,
+    // Preserve simulation so SimulationDisplay renders in amber stale mode
+    simulation: state.simulation,
+    needsApproval: false,
+    isQuoteExpired: true,
+    error: 'Quote expired. Refresh quote before continuing.',
+  };
+}
 
 export function useSwapFlow() {
   const { address, chainId } = useAccount();
@@ -62,6 +84,8 @@ export function useSwapFlow() {
     approving: false,
     txHistory: [],
     policyConfig: loadPolicyConfig(),
+    balancesVersion: 0,
+    isQuoteExpired: false,
   });
 
   const isWrongChain = chainId !== undefined && !isSupportedChain(chainId);
@@ -81,9 +105,25 @@ export function useSwapFlow() {
       error: null,
       needsApproval: false,
       approving: false,
+      isQuoteExpired: false,
       txHistory: loadHistory(address),
     }));
   }, [address, chainId]);
+
+  // Actively invalidate stale quote state at the exact TTL boundary.
+  // An in-flight token approval is independent of quote freshness and is preserved.
+  useEffect(() => {
+    const expiresAt = flowState.quote?.expiresAt;
+    if (!expiresAt || flowState.state === 'executing' || flowState.state === 'confirmed') return;
+
+    const invalidate = () => {
+      setFlowState((prev) => invalidateExpiredQuoteState(prev));
+    };
+
+    const delay = Math.max(0, expiresAt - Date.now());
+    const timer = window.setTimeout(invalidate, delay);
+    return () => window.clearTimeout(timer);
+  }, [flowState.quote?.expiresAt, flowState.approving, flowState.state]);
 
   const reset = useCallback(() => {
     runId.current += 1;
@@ -99,6 +139,7 @@ export function useSwapFlow() {
       error: null,
       needsApproval: false,
       approving: false,
+      isQuoteExpired: false,
     }));
   }, []);
 
@@ -143,26 +184,23 @@ export function useSwapFlow() {
       try {
         const prepared = await prepareSwap(intent, address as `0x${string}`, policyConfig);
         if (!isCurrent()) return;
+        const approvalNeeded = !prepared.simulation.allowanceCheck && prepared.simulation.balanceCheck;
         setFlowState((prev) => ({
           ...prev,
           quote: prepared.quote,
           simulation: prepared.simulation,
           policyResult: prepared.policyResult,
-          state:
-            prepared.simulation.allowanceCheck && prepared.policyResult.status === 'PASS'
+          state: approvalNeeded
+            ? 'error'
+            : prepared.simulation.allowanceCheck && prepared.policyResult.status === 'PASS'
               ? 'ready'
               : 'policy-done',
+          needsApproval: approvalNeeded,
+          isQuoteExpired: false,
+          error: approvalNeeded ? 'Token approval required. Approve ' + intent.tokenIn + ' before swapping.' : null,
         }));
 
-        if (!prepared.simulation.allowanceCheck && prepared.simulation.balanceCheck) {
-          setFlowState((prev) => ({
-            ...prev,
-            state: 'error',
-            needsApproval: true,
-            error: `Token approval required. Approve ${intent.tokenIn} before swapping.`,
-          }));
-          return;
-        }
+        if (approvalNeeded) return;
         if (prepared.policyResult.status === 'REJECT') {
           setFlowState((prev) => ({
             ...prev,
@@ -200,7 +238,7 @@ export function useSwapFlow() {
       const receipt = await (await getHealthyClient()).waitForTransactionReceipt({ hash });
       if (receipt.status === 'reverted') throw new Error('Approval transaction reverted');
       actionInFlight.current = false;
-      setFlowState((prev) => ({ ...prev, approving: false, needsApproval: false, error: null }));
+      setFlowState((prev) => ({ ...prev, approving: false, needsApproval: false, error: null, balancesVersion: prev.balancesVersion + 1 }));
       await runFlow(intent);
     } catch (error) {
       actionInFlight.current = false;
@@ -291,7 +329,7 @@ export function useSwapFlow() {
       setFlowState((prev) => {
         const txHistory = [entry, ...prev.txHistory].slice(0, HISTORY_LIMIT);
         saveHistory(address, txHistory);
-        return { ...prev, txHash: hash, state: 'confirmed', txHistory };
+        return { ...prev, txHash: hash, state: 'confirmed', error: null, balancesVersion: prev.balancesVersion + 1, txHistory };
       });
     } catch (error) {
       setFlowState((prev) => ({

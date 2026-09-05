@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { prepareSwap, readQuotedAmount } from '../../src/flow/prepare';
+import { invalidateExpiredQuoteState } from '../../src/ui/useSwapFlow';
 import { evaluatePolicy } from '../../src/policy/engine';
 import {
   SwapIntent,
@@ -483,5 +484,124 @@ describe('readQuotedAmount regression', () => {
 
   it('rejects garbage', () => {
     expect(() => readQuotedAmount('abc')).toThrow();
+  });
+});
+
+
+describe('Active quote expiry invalidation', () => {
+  it('invalidates policy/simulation immediately after TTL and blocks readiness', () => {
+    const quote = makeQuote(Date.now() + 1000);
+    const state = {
+      state: 'ready' as const,
+      intent,
+      quote,
+      policyResult: { status: 'PASS' as const, checks: [] },
+      simulation: goodSim,
+      txHash: null,
+      error: null,
+      needsApproval: false,
+      approving: false,
+      txHistory: [],
+      policyConfig: policy,
+    };
+    const expired = invalidateExpiredQuoteState(state, quote.expiresAt);
+    expect(expired.state).toBe('error');
+    expect(expired.policyResult).toBeNull();
+    // Simulation preserved for amber stale display
+    expect(expired.simulation).not.toBeNull();
+    expect(expired.error).toContain('Quote expired');
+  });
+
+  it('preserves an in-flight approval while invalidating stale execution checks', () => {
+    const quote = makeQuote(Date.now() - 1);
+    const state = {
+      state: 'error' as const,
+      intent,
+      quote,
+      policyResult: { status: 'REJECT' as const, checks: [] },
+      simulation: { ...goodSim, allowanceCheck: false },
+      txHash: null,
+      error: 'Token approval required',
+      needsApproval: true,
+      approving: true,
+      txHistory: [],
+      policyConfig: policy,
+    };
+    const expired = invalidateExpiredQuoteState(state, Date.now());
+    expect(expired.approving).toBe(true);
+    expect(expired.needsApproval).toBe(true);
+    expect(expired.policyResult).toBeNull();
+    expect(expired.simulation).toBeNull();
+    expect(expired.error).toBe('Token approval required');
+  });
+
+  it('does not invalidate or set error if TTL expires while transaction is executing', () => {
+    const quote = makeQuote(Date.now() - 100);
+    const state = {
+      state: 'executing' as const,
+      intent,
+      quote,
+      policyResult: { status: 'PASS' as const, checks: [] },
+      simulation: goodSim,
+      txHash: null,
+      error: null,
+      needsApproval: false,
+      approving: false,
+      txHistory: [],
+      policyConfig: policy,
+      balancesVersion: 0,
+    };
+    const result = invalidateExpiredQuoteState(state, Date.now());
+    expect(result.state).toBe('executing');
+    expect(result.error).toBeNull();
+    expect(result.policyResult).not.toBeNull();
+    expect(result.simulation).not.toBeNull();
+  });
+
+  it('does not invalidate or set error if TTL expires after transaction is confirmed', () => {
+    const quote = makeQuote(Date.now() - 100);
+    const state = {
+      state: 'confirmed' as const,
+      intent,
+      quote,
+      policyResult: { status: 'PASS' as const, checks: [] },
+      simulation: goodSim,
+      txHash: '0x123',
+      error: null,
+      needsApproval: false,
+      approving: false,
+      txHistory: [],
+      policyConfig: policy,
+      balancesVersion: 1,
+    };
+    const result = invalidateExpiredQuoteState(state, Date.now());
+    expect(result.state).toBe('confirmed');
+    expect(result.error).toBeNull();
+  });
+
+  it('marks preflight state as expired before confirm, invalidating ready state and requiring quote refresh', () => {
+    const expiredQuote = makeQuote(Date.now() - 50);
+    const readyState = {
+      state: 'ready' as const,
+      intent,
+      quote: expiredQuote,
+      policyResult: { status: 'PASS' as const, checks: [] },
+      simulation: goodSim,
+      txHash: null,
+      error: null,
+      needsApproval: false,
+      approving: false,
+      txHistory: [],
+      policyConfig: policy,
+      balancesVersion: 0,
+    };
+    const invalidated = invalidateExpiredQuoteState(readyState, Date.now());
+    // (a) Confirm blocked: state transitions away from ready to error
+    expect(invalidated.state).toBe('error');
+    expect(invalidated.error).toContain('Quote expired');
+    // Policy and simulation cleared from ready execution eligibility
+    expect(invalidated.policyResult).toBeNull();
+    expect(invalidated.simulation).not.toBeNull();
+    expect(invalidated.isQuoteExpired).toBe(true);
   });
 });
