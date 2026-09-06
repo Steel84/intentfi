@@ -48,17 +48,20 @@ const HISTORY_PREFIX = 'intentfi-history:';
 
 export function invalidateExpiredQuoteState(state: FlowState, now = Date.now()): FlowState {
   if (!state.quote || state.quote.expiresAt > now) return { ...state, isQuoteExpired: false };
-  if (state.state === 'executing' || state.state === 'confirmed') {
+
+  // Never treat quote as expired while user is signing or waiting for confirmation
+  if (
+    state.state === 'executing' ||
+    state.state === 'confirmed' ||
+    state.approving
+  ) {
     return { ...state, isQuoteExpired: false };
   }
-  if (state.approving) {
-    return { ...state, policyResult: null, simulation: null, isQuoteExpired: true };
-  }
+
   return {
     ...state,
     state: 'error',
     policyResult: null,
-    // Preserve simulation so SimulationDisplay renders in amber stale mode
     simulation: state.simulation,
     needsApproval: false,
     isQuoteExpired: true,
@@ -201,12 +204,24 @@ export function useSwapFlow() {
         }));
 
         if (approvalNeeded) return;
+
+        // Only surface policy rejection when it is NOT purely an approval issue
         if (prepared.policyResult.status === 'REJECT') {
-          setFlowState((prev) => ({
-            ...prev,
-            state: 'error',
-            error: `Policy rejected: ${formatPolicyFailures(prepared.policyResult)}`,
-          }));
+          const cleanMsg = formatPolicyFailures(prepared.policyResult);
+          if (cleanMsg.toLowerCase().includes('approval') || cleanMsg.toLowerCase().includes('allowance')) {
+            setFlowState((prev) => ({
+              ...prev,
+              state: 'error',
+              needsApproval: true,
+              error: `Token approval required. Approve ${intent.tokenIn} before swapping.`,
+            }));
+          } else {
+            setFlowState((prev) => ({
+              ...prev,
+              state: 'error',
+              error: `Policy rejected: ${cleanMsg}`,
+            }));
+          }
         }
       } catch (error) {
         if (!isCurrent()) return;

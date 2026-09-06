@@ -48,7 +48,19 @@ export function SimulationDisplay({
   }
 
   // Pre-confirmation logic
-  const isApprovalCase = needsApproval || (!result.success && !result.allowanceCheck && result.balanceCheck);
+  // Treat classic Uniswap "STF" (Safe Transfer From) as an approval case
+  const looksLikeMissingAllowance =
+    !result.success &&
+    Boolean(
+      result.error &&
+        (result.error.includes('STF') ||
+          result.error.toLowerCase().includes('allowance') ||
+          result.error.toLowerCase().includes('transferfrom')),
+    );
+  const isApprovalCase =
+    needsApproval ||
+    looksLikeMissingAllowance ||
+    (!result.success && !result.allowanceCheck && result.balanceCheck);
   const cardClass = isApprovalCase
     ? 'warning'
     : isQuoteExpired
@@ -99,7 +111,7 @@ export function SimulationDisplay({
       ) : isApprovalCase ? (
         <div>
           <p className="sim-status warning">⏳ Approval required before simulation can complete</p>
-          {result.error && <p className="sim-error warning" style={{ color: 'var(--text-muted)' }}>{result.error}</p>}
+          {/* Never show raw STF / technical revert messages for a normal approval step */}
           <div className="sim-details">
             <div className="sim-detail-row">
               <span>Balance:</span>

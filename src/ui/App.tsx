@@ -225,16 +225,25 @@ export default function App() {
               </div>
             )}
 
-            {(inputError || flow.error) && flow.state !== 'confirmed' && (
-              !inputError && flow.needsApproval ? (
+            {(inputError || flow.error) &&
+              flow.state !== 'confirmed' &&
+              flow.state !== 'executing' && (
+              !inputError &&
+              (flow.needsApproval ||
+                (flow.error &&
+                  (flow.error.toLowerCase().includes('approval') ||
+                    flow.error.toLowerCase().includes('allowance')))) ? (
                 <div className="action-box">
-                  <strong>Action required:</strong> {flow.error}
+                  <strong>Action required:</strong>{' '}
+                  {flow.error && !flow.error.toLowerCase().includes('stf')
+                    ? flow.error
+                    : `Token approval required. Approve ${flow.intent?.tokenIn ?? 'token'} before swapping.`}
                   <button
                     className="btn-approve"
                     onClick={flow.approveToken}
                     disabled={flow.approving}
                   >
-                    {flow.approving ? 'Approving...' : `Approve ${flow.intent?.tokenIn}`}
+                    {flow.approving ? 'Approving…' : `Approve ${flow.intent?.tokenIn}`}
                   </button>
                 </div>
               ) : (
@@ -275,13 +284,19 @@ export default function App() {
                 quote={flow.quote}
                 onRefresh={flow.state !== 'confirmed' ? flow.refreshQuote : undefined}
                 isConfirmed={flow.state === 'confirmed'}
+                isPending={flow.approving || flow.state === 'executing'}
               />
             )}
             {flow.simulation && (
               <SimulationDisplay
                 result={flow.simulation}
                 needsApproval={flow.needsApproval}
-                isQuoteExpired={flow.state !== 'confirmed' && (flow.isQuoteExpired || Boolean(flow.quote && flow.quote.expiresAt <= Date.now()))}
+                isQuoteExpired={
+                  flow.state !== 'confirmed' &&
+                  !flow.approving &&
+                  flow.state !== 'executing' &&
+                  (flow.isQuoteExpired || Boolean(flow.quote && flow.quote.expiresAt <= Date.now()))
+                }
                 isConfirmed={flow.state === 'confirmed'}
               />
             )}
@@ -289,7 +304,12 @@ export default function App() {
               <PolicyDisplay
                 result={flow.policyResult}
                 needsApproval={flow.needsApproval}
-                isQuoteExpired={flow.state !== 'confirmed' && (flow.isQuoteExpired || Boolean(flow.quote && flow.quote.expiresAt <= Date.now()))}
+                isQuoteExpired={
+                  flow.state !== 'confirmed' &&
+                  !flow.approving &&
+                  flow.state !== 'executing' &&
+                  (flow.isQuoteExpired || Boolean(flow.quote && flow.quote.expiresAt <= Date.now()))
+                }
                 isConfirmed={flow.state === 'confirmed'}
               />
             )}

@@ -5,27 +5,43 @@ type Props = {
   quote: Quote;
   onRefresh?: () => void;
   isConfirmed?: boolean;
+  /** When true (approving / executing), never show the red Expired state */
+  isPending?: boolean;
 };
 
-export function QuoteDisplay({ quote, onRefresh, isConfirmed = false }: Props) {
+export function QuoteDisplay({
+  quote,
+  onRefresh,
+  isConfirmed = false,
+  isPending = false,
+}: Props) {
   const [remaining, setRemaining] = useState(() => Math.max(0, quote.expiresAt - Date.now()));
 
   useEffect(() => {
-    if (isConfirmed) return;
+    if (isConfirmed || isPending) return;
     const update = () => setRemaining(Math.max(0, quote.expiresAt - Date.now()));
     update();
     const timer = window.setInterval(update, 1000);
     return () => window.clearInterval(timer);
-  }, [quote.expiresAt, isConfirmed]);
+  }, [quote.expiresAt, isConfirmed, isPending]);
 
-  const expired = !isConfirmed && remaining === 0;
+  // Never show Expired while the user is signing or waiting for confirmation
+  const expired = !isConfirmed && !isPending && remaining === 0;
+
+  const timerLabel = isConfirmed
+    ? 'Executed'
+    : isPending
+      ? 'Waiting for wallet…'
+      : expired
+        ? 'Expired'
+        : `Valid for ${Math.ceil(remaining / 1000)}s`;
 
   return (
     <div className={`card quote-display ${expired ? 'quote-expired' : ''}`}>
       <div className="card-heading">
         <h3>Live Quote</h3>
-        <span className={`quote-timer ${expired ? 'expired' : ''}`}>
-          {isConfirmed ? 'Executed' : expired ? 'Expired' : `Valid for ${Math.ceil(remaining / 1000)}s`}
+        <span className={`quote-timer ${expired ? 'expired' : isPending ? 'pending' : ''}`}>
+          {timerLabel}
         </span>
       </div>
       <div className="intent-fields">

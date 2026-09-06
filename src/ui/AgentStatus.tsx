@@ -25,11 +25,13 @@ export function AgentStatus({ state, quote, policy, simulation, needsApproval }:
             ? `All checks passed${quote?.route ? ` on ${quote.route}` : ''}. Your wallet is the only thing that can approve this swap.`
             : state === 'executing'
               ? 'Waiting for your wallet signature, then confirmation from Sepolia.'
-              : displayStatus === 'rejected'
-                ? 'The policy blocked this proposal. Nothing can be submitted until the failed checks pass.'
-                : !needsApproval && state === 'error' && simulation && !simulation.success
-                  ? 'Preflight failed. The transaction is blocked and was not submitted.'
-                  : null;
+              : needsApproval
+                ? 'Token approval is required before this swap can proceed.'
+                : displayStatus === 'rejected'
+                  ? 'The policy blocked this proposal. Nothing can be submitted until the failed checks pass.'
+                  : state === 'error' && simulation && !simulation.success
+                    ? 'Preflight failed. The transaction is blocked and was not submitted.'
+                    : null;
 
   if (!message) return null;
   return (

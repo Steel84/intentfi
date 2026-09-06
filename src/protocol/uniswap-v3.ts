@@ -127,7 +127,7 @@ export class UniswapV3Adapter implements SwapProtocol {
       slippageBps,
       gasEstimate: gasEstimate.toString(),
       route: `${params.tokenIn} -> ${params.tokenOut} (0.3% fee)`,
-      expiresAt: Date.now() + 30000, // 30s validity
+      expiresAt: Date.now() + 90000, // 90s validity (enough time for MetaMask confirmation)
     };
   }
 
