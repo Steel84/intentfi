@@ -512,27 +512,31 @@ describe('Active quote expiry invalidation', () => {
     expect(expired.error).toContain('Quote expired');
   });
 
-  it('preserves an in-flight approval while invalidating stale execution checks', () => {
-    const quote = makeQuote(Date.now() - 1);
+  it('preserves an in-flight approval and does not treat quote as expired', () => {
+    const quote = makeQuote(Date.now() - 1000); // already expired
     const state = {
       state: 'error' as const,
       intent,
       quote,
       policyResult: { status: 'REJECT' as const, checks: [] },
-      simulation: { ...goodSim, allowanceCheck: false },
+      simulation: { success: false, balanceCheck: true, allowanceCheck: false, gasUsed: undefined, error: 'STF' },
       txHash: null,
       error: 'Token approval required',
       needsApproval: true,
       approving: true,
       txHistory: [],
       policyConfig: policy,
+      balancesVersion: 0,
+      isQuoteExpired: false,
     };
-    const expired = invalidateExpiredQuoteState(state, Date.now());
-    expect(expired.approving).toBe(true);
-    expect(expired.needsApproval).toBe(true);
-    expect(expired.policyResult).toBeNull();
-    expect(expired.simulation).toBeNull();
-    expect(expired.error).toBe('Token approval required');
+    const result = invalidateExpiredQuoteState(state, Date.now());
+    // While approving we intentionally keep state intact and never flag quote as expired
+    expect(result.approving).toBe(true);
+    expect(result.needsApproval).toBe(true);
+    expect(result.isQuoteExpired).toBe(false);
+    expect(result.policyResult).not.toBeNull();
+    expect(result.simulation).not.toBeNull();
+    expect(result.error).toBe('Token approval required');
   });
 
   it('does not invalidate or set error if TTL expires while transaction is executing', () => {
