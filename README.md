@@ -1,5 +1,8 @@
 # IntentFi
 
+**Live Demo:** https://intentfi.fortravels.xyz/
+
+
 **A safety and policy execution layer for onchain financial intents.**
 
 Natural-language intents are converted into a strictly validated structured representation. Deterministic policy and transaction simulation enforce the safety boundary before the user signs anything.
@@ -34,7 +37,7 @@ Onchain Execution (Uniswap V3, Sepolia)
 
 | Layer | What it does |
 |---|---|
-| **Intent Parser** | Converts free-text input into a validated `SwapIntent` struct. The shipped UI tries the deterministic regex parser first, then uses Gemini 3.6 Flash only as a fallback for complex phrasing when configured. |
+| **Intent Parser** | Converts free-text input into a validated `SwapIntent` struct. The shipped UI tries the deterministic regex parser first, then uses Mistral (default) / Gemini (optional fallback) only as a fallback for complex phrasing when configured. |
 | **Policy Engine** | Pure deterministic code. Checks chain allowlist, protocol allowlist, token allowlist, slippage bounds, price impact ceiling, quote freshness, and balance/allowance sufficiency. Any violation blocks execution. |
 | **Simulation / Preflight** | Runs balance check, allowance check, gas estimation, and full `eth_call` simulation against the real chain state before the user is asked to sign. Failed simulation = blocked transaction. |
 | **Human Approval** | The user reviews the complete transaction preview (amounts, rates, fees, policy results, simulation outcome) and explicitly signs via MetaMask. No blind approvals. |
@@ -46,7 +49,7 @@ Onchain Execution (Uniswap V3, Sepolia)
 
 > **This section is intentionally honest. Read it.**
 
-The shipped demo uses a **two-stage hybrid parser**. `tryFallbackParse()` runs first, instantly and deterministically. If it cannot understand the phrasing and `VITE_GEMINI_API_KEY` is configured, `parseIntent()` calls Gemini 3.6 Flash as an LLM fallback.
+The shipped demo uses a **two-stage hybrid parser**. `tryFallbackParse()` runs first, instantly and deterministically. If it cannot understand the phrasing and `VITE_GEMINI_API_KEY` is configured, `parseIntent()` calls Mistral (default) / Gemini (optional fallback) as an LLM fallback.
 
 Both parser outputs pass through the same strict `validateSwapIntent()` function before entering the policy engine. The LLM can propose structured intent data, but it cannot generate calldata, decide policy results, or bypass validation.
 
@@ -72,7 +75,7 @@ npm run dev
 |---|---|---|
 | `VITE_RPC_PRIMARY` | `https://1rpc.io/sepolia` | Primary Sepolia RPC endpoint |
 | `VITE_RPC_FALLBACK` | `https://ethereum-sepolia-rpc.publicnode.com` | Fallback RPC (auto-failover on primary failure) |
-| `VITE_GEMINI_API_KEY` | — | Optional Gemini 3.6 Flash key for complex natural-language fallback parsing |
+| `VITE_GEMINI_API_KEY` | — | Optional Mistral (default) / Gemini (optional fallback) key for complex natural-language fallback parsing |
 | `VITE_GEMINI_MODEL` | `gemini-3.6-flash` | Optional model override |
 | `VITE_WALLETCONNECT_PROJECT_ID` | — | WalletConnect v2 project ID (optional) |
 
