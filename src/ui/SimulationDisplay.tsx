@@ -53,9 +53,9 @@ export function SimulationDisplay({
     !result.success &&
     Boolean(
       result.error &&
-        (result.error.includes('STF') ||
-          result.error.toLowerCase().includes('allowance') ||
-          result.error.toLowerCase().includes('transferfrom')),
+      (result.error.includes('STF') ||
+        result.error.toLowerCase().includes('allowance') ||
+        result.error.toLowerCase().includes('transferfrom')),
     );
   const isApprovalCase =
     needsApproval ||
@@ -73,7 +73,9 @@ export function SimulationDisplay({
     <div className={`card simulation-display ${cardClass}`}>
       <div className="card-heading">
         <h3>Simulation / Preflight</h3>
-        {isQuoteExpired && !isApprovalCase && <span className="quote-timer expired">Stale (Quote expired)</span>}
+        {isQuoteExpired && !isApprovalCase && (
+          <span className="quote-timer expired">Stale (Quote expired)</span>
+        )}
         {isApprovalCase && <span className="quote-timer warning">Needs Approval</span>}
       </div>
       {result.success ? (
@@ -119,7 +121,9 @@ export function SimulationDisplay({
             </div>
             <div className="sim-detail-row">
               <span>Allowance:</span>
-              <span className="check-fail" style={{ color: 'var(--warning)' }}>⏳ Pending approval</span>
+              <span className="check-fail" style={{ color: 'var(--warning)' }}>
+                ⏳ Pending approval
+              </span>
             </div>
           </div>
         </div>

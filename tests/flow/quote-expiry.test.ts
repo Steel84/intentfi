@@ -487,7 +487,6 @@ describe('readQuotedAmount regression', () => {
   });
 });
 
-
 describe('Active quote expiry invalidation', () => {
   it('invalidates policy/simulation immediately after TTL and blocks readiness', () => {
     const quote = makeQuote(Date.now() + 1000);
@@ -519,7 +518,13 @@ describe('Active quote expiry invalidation', () => {
       intent,
       quote,
       policyResult: { status: 'REJECT' as const, checks: [] },
-      simulation: { success: false, balanceCheck: true, allowanceCheck: false, gasUsed: undefined, error: 'STF' },
+      simulation: {
+        success: false,
+        balanceCheck: true,
+        allowanceCheck: false,
+        gasUsed: undefined,
+        error: 'STF',
+      },
       txHash: null,
       error: 'Token approval required',
       needsApproval: true,

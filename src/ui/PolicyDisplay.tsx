@@ -86,7 +86,8 @@ export function PolicyDisplay({
       </p>
       <div className="checks">
         {result.checks.map((check, i) => {
-          const checkExpired = isQuoteExpired && check.name === 'Quote Fresh' && !isOnlyApprovalFailed;
+          const checkExpired =
+            isQuoteExpired && check.name === 'Quote Fresh' && !isOnlyApprovalFailed;
           const isPendingApprovalCheck =
             isOnlyApprovalFailed &&
             (check.name === 'Token Allowance Set' || check.name === 'Simulation Passed');

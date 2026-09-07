@@ -13,9 +13,15 @@ const MISTRAL_PARSE_TOOL = {
         tokenIn: { type: 'string', description: 'Uppercase token symbol, e.g. USDC, WETH' },
         tokenOut: { type: 'string', description: 'Uppercase token symbol, e.g. ETH, WETH' },
         amountIn: { type: 'string', description: 'Decimal string amount, e.g. "10"' },
-        maxSlippageBps: { type: 'integer', description: 'Integer basis points (0.5% = 50 bps, 1% = 100 bps)' },
+        maxSlippageBps: {
+          type: 'integer',
+          description: 'Integer basis points (0.5% = 50 bps, 1% = 100 bps)',
+        },
         unsupportedConditions: { type: 'array', items: { type: 'string' } },
-        error: { type: 'string', description: 'Explanation if the request is not a swap or cannot be parsed' },
+        error: {
+          type: 'string',
+          description: 'Explanation if the request is not a swap or cannot be parsed',
+        },
       },
       required: [
         'action',
@@ -108,7 +114,10 @@ export async function parseIntent(
   const isBrowser = typeof window !== 'undefined';
 
   if (provider === 'gemini') {
-    const key = apiKey !== undefined ? apiKey : ((typeof import.meta !== 'undefined' ? import.meta.env?.VITE_GEMINI_API_KEY : '') || '');
+    const key =
+      apiKey !== undefined
+        ? apiKey
+        : (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_GEMINI_API_KEY : '') || '';
     if (!key || !key.trim()) return { success: false, error: 'LLM API key is not configured' };
 
     const model =
@@ -175,8 +184,12 @@ export async function parseIntent(
   }
 
   // Default provider: Mistral AI (Function Calling)
-  const mistralKey = apiKey !== undefined ? apiKey : ((typeof import.meta !== 'undefined' ? import.meta.env?.VITE_MISTRAL_API_KEY : '') || '');
-  if (!mistralKey || !mistralKey.trim()) return { success: false, error: 'LLM API key is not configured' };
+  const mistralKey =
+    apiKey !== undefined
+      ? apiKey
+      : (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_MISTRAL_API_KEY : '') || '';
+  if (!mistralKey || !mistralKey.trim())
+    return { success: false, error: 'LLM API key is not configured' };
 
   const mistralModel =
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_MISTRAL_MODEL) ||

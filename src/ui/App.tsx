@@ -55,11 +55,11 @@ export default function App() {
     isLoading: nativeLoading,
     isError: nativeError,
     error: nativeErrObj,
-    refetch: refetchNative
+    refetch: refetchNative,
   } = useBalance({
     address: safeAccountAddress,
     chainId: CHAIN_CONFIG.chainId,
-    query: { enabled: Boolean(safeAccountAddress) }
+    query: { enabled: Boolean(safeAccountAddress) },
   });
 
   const {
@@ -67,12 +67,12 @@ export default function App() {
     isLoading: usdcLoading,
     isError: usdcError,
     error: usdcErrObj,
-    refetch: refetchUsdc
+    refetch: refetchUsdc,
   } = useBalance({
     address: safeAccountAddress,
     token: getAddress(TOKENS.USDC.address),
     chainId: CHAIN_CONFIG.chainId,
-    query: { enabled: Boolean(safeAccountAddress) }
+    query: { enabled: Boolean(safeAccountAddress) },
   });
 
   const {
@@ -80,12 +80,12 @@ export default function App() {
     isLoading: wethLoading,
     isError: wethError,
     error: wethErrObj,
-    refetch: refetchWeth
+    refetch: refetchWeth,
   } = useBalance({
     address: safeAccountAddress,
     token: getAddress(TOKENS.WETH.address),
     chainId: CHAIN_CONFIG.chainId,
-    query: { enabled: Boolean(safeAccountAddress) }
+    query: { enabled: Boolean(safeAccountAddress) },
   });
 
   const flow = useSwapFlow();
@@ -125,40 +125,38 @@ export default function App() {
 
   return (
     <div className="app">
-      {isConnected && <>
-        <header className="header">
-          <h1 className="logo">IntentFi</h1>
-          <div className="wallet-area">
-            {address && (
-              <div className="wallet-account-badge">
-                <span className="wallet-pill" title={address}>
-                  {address.slice(0, 6)}...{address.slice(-4)}
-                </span>
-                <button
-                  type="button"
-                  className="btn-disconnect"
-                  onClick={() => disconnect()}
-                >
-                  Disconnect
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
-        {address && (
-          <div className="token-balances-bar" aria-label="Wallet balances">
-            <span className="balance">
-              ETH {nativeLoading ? '…' : formatBalanceDisplay(nativeBalance?.formatted, 4)}
-            </span>
-            <span className="balance">
-              WETH {wethLoading ? '…' : formatBalanceDisplay(wethBalance?.formatted, 6)}
-            </span>
-            <span className="balance">
-              USDC {usdcLoading ? '…' : formatBalanceDisplay(usdcBalance?.formatted, 2)}
-            </span>
-          </div>
-        )}
-      </>}
+      {isConnected && (
+        <>
+          <header className="header">
+            <h1 className="logo">IntentFi</h1>
+            <div className="wallet-area">
+              {address && (
+                <div className="wallet-account-badge">
+                  <span className="wallet-pill" title={address}>
+                    {address.slice(0, 6)}...{address.slice(-4)}
+                  </span>
+                  <button type="button" className="btn-disconnect" onClick={() => disconnect()}>
+                    Disconnect
+                  </button>
+                </div>
+              )}
+            </div>
+          </header>
+          {address && (
+            <div className="token-balances-bar" aria-label="Wallet balances">
+              <span className="balance">
+                ETH {nativeLoading ? '…' : formatBalanceDisplay(nativeBalance?.formatted, 4)}
+              </span>
+              <span className="balance">
+                WETH {wethLoading ? '…' : formatBalanceDisplay(wethBalance?.formatted, 6)}
+              </span>
+              <span className="balance">
+                USDC {usdcLoading ? '…' : formatBalanceDisplay(usdcBalance?.formatted, 2)}
+              </span>
+            </div>
+          )}
+        </>
+      )}
 
       <main className="main">
         {!isConnected ? (
@@ -227,8 +225,8 @@ export default function App() {
 
             {(inputError || flow.error) &&
               flow.state !== 'confirmed' &&
-              flow.state !== 'executing' && (
-              !inputError &&
+              flow.state !== 'executing' &&
+              (!inputError &&
               (flow.needsApproval ||
                 (flow.error &&
                   (flow.error.toLowerCase().includes('approval') ||
@@ -255,10 +253,9 @@ export default function App() {
                     </button>
                   )}
                 </div>
-              )
-            )}
+              ))}
 
-                        {/* When confirmed: show Confirmed box prominently at the top */}
+            {/* When confirmed: show Confirmed box prominently at the top */}
             {flow.state === 'confirmed' && flow.txHash && (
               <div className="success-box">
                 <h3>Transaction Confirmed ✓</h3>

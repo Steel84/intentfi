@@ -50,11 +50,7 @@ export function invalidateExpiredQuoteState(state: FlowState, now = Date.now()):
   if (!state.quote || state.quote.expiresAt > now) return { ...state, isQuoteExpired: false };
 
   // Never treat quote as expired while user is signing or waiting for confirmation
-  if (
-    state.state === 'executing' ||
-    state.state === 'confirmed' ||
-    state.approving
-  ) {
+  if (state.state === 'executing' || state.state === 'confirmed' || state.approving) {
     return { ...state, isQuoteExpired: false };
   }
 
@@ -187,7 +183,8 @@ export function useSwapFlow() {
       try {
         const prepared = await prepareSwap(intent, address as `0x${string}`, policyConfig);
         if (!isCurrent()) return;
-        const approvalNeeded = !prepared.simulation.allowanceCheck && prepared.simulation.balanceCheck;
+        const approvalNeeded =
+          !prepared.simulation.allowanceCheck && prepared.simulation.balanceCheck;
         setFlowState((prev) => ({
           ...prev,
           quote: prepared.quote,
@@ -200,7 +197,9 @@ export function useSwapFlow() {
               : 'policy-done',
           needsApproval: approvalNeeded,
           isQuoteExpired: false,
-          error: approvalNeeded ? 'Token approval required. Approve ' + intent.tokenIn + ' before swapping.' : null,
+          error: approvalNeeded
+            ? 'Token approval required. Approve ' + intent.tokenIn + ' before swapping.'
+            : null,
         }));
 
         if (approvalNeeded) return;
@@ -208,7 +207,10 @@ export function useSwapFlow() {
         // Only surface policy rejection when it is NOT purely an approval issue
         if (prepared.policyResult.status === 'REJECT') {
           const cleanMsg = formatPolicyFailures(prepared.policyResult);
-          if (cleanMsg.toLowerCase().includes('approval') || cleanMsg.toLowerCase().includes('allowance')) {
+          if (
+            cleanMsg.toLowerCase().includes('approval') ||
+            cleanMsg.toLowerCase().includes('allowance')
+          ) {
             setFlowState((prev) => ({
               ...prev,
               state: 'error',
@@ -253,7 +255,13 @@ export function useSwapFlow() {
       const receipt = await (await getHealthyClient()).waitForTransactionReceipt({ hash });
       if (receipt.status === 'reverted') throw new Error('Approval transaction reverted');
       actionInFlight.current = false;
-      setFlowState((prev) => ({ ...prev, approving: false, needsApproval: false, error: null, balancesVersion: prev.balancesVersion + 1 }));
+      setFlowState((prev) => ({
+        ...prev,
+        approving: false,
+        needsApproval: false,
+        error: null,
+        balancesVersion: prev.balancesVersion + 1,
+      }));
       await runFlow(intent);
     } catch (error) {
       actionInFlight.current = false;
@@ -344,7 +352,14 @@ export function useSwapFlow() {
       setFlowState((prev) => {
         const txHistory = [entry, ...prev.txHistory].slice(0, HISTORY_LIMIT);
         saveHistory(address, txHistory);
-        return { ...prev, txHash: hash, state: 'confirmed', error: null, balancesVersion: prev.balancesVersion + 1, txHistory };
+        return {
+          ...prev,
+          txHash: hash,
+          state: 'confirmed',
+          error: null,
+          balancesVersion: prev.balancesVersion + 1,
+          txHistory,
+        };
       });
     } catch (error) {
       setFlowState((prev) => ({

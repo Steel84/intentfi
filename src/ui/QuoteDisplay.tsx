@@ -9,12 +9,7 @@ type Props = {
   isPending?: boolean;
 };
 
-export function QuoteDisplay({
-  quote,
-  onRefresh,
-  isConfirmed = false,
-  isPending = false,
-}: Props) {
+export function QuoteDisplay({ quote, onRefresh, isConfirmed = false, isPending = false }: Props) {
   const [remaining, setRemaining] = useState(() => Math.max(0, quote.expiresAt - Date.now()));
 
   useEffect(() => {
