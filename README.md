@@ -85,7 +85,7 @@ No API keys are required for the deterministic path. To enable the current Mistr
 
 ## Live Demo
 
-🎬 **Demo video:** _[add final public URL before submission]_
+🎬 **Demo video:** [https://github.com/Steel84/intentfi/releases/download/demo-v6/IntentFi_Demo_FINAL_v6.mp4](https://github.com/Steel84/intentfi/releases/download/demo-v6/IntentFi_Demo_FINAL_v6.mp4)
 
 ### Verified Transaction (Sepolia)
 
